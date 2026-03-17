@@ -1,0 +1,46 @@
+# Solti VR3 Preferences
+# Updated by /onboard wizard or manually
+
+# General
+timezone: "America/Bogota"
+language: "es"
+date_format: "YYYY-MM-DD"
+
+# Model routing
+default_model: "sonnet"        # For most skills
+planning_model: "opus"         # For /strategy
+quick_model: "haiku"           # For /crm, /connect
+
+# Cost controls
+daily_cost_limit: 10.00        # USD — warn at 80%, stop at 100%
+confirm_above: 1.00            # USD — require confirmation
+
+# Communication
+confirm_before_sending: true   # Always confirm outbound messages
+preview_before_publish: true   # Always preview social posts
+
+# Hub connection (populated by /connect)
+hub_url: ""                    # http://localhost:4000 or https://hub.solti.app
+hub_api_key: ""                # Plugin → Hub authentication
+
+# Channels enabled
+channels:
+  email: false
+  instagram_dm: false
+  linkedin_dm: false
+  whatsapp: false
+  social_publishing: false
+
+# Service credentials (populated by /connect)
+# Note: For Hub mode, credentials are stored in Tenant Vault (encrypted).
+# These local values are only for standalone mode (no Hub).
+apify_token: ""
+phantom_api_key: ""
+brevo_api_key: ""
+evolution_api_key: ""
+evolution_api_url: ""
+getlate_token: ""
+instagram_session_id: ""
+
+# Telegram (populated by /connect)
+telegram_chat_id: ""

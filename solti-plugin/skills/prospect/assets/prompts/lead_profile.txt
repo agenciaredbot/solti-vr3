@@ -1,0 +1,18 @@
+Generate a concise lead profile summary for the following lead data.
+
+Lead:
+  Name: {{lead.name}}
+  Company: {{lead.company}}
+  Raw Data: {{lead.data}}
+
+ICP Context:
+  {{icp.summary}}
+
+Instructions:
+1. Summarize who this lead is in 2-3 sentences
+2. Highlight data points that match our ICP
+3. Flag any red flags or disqualifying factors
+4. Suggest the best outreach channel (email, LinkedIn, Instagram, WhatsApp)
+5. Rate fit: HOT / WARM / COLD with brief justification
+
+Output in Spanish.

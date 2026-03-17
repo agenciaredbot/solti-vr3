@@ -1,0 +1,20 @@
+{
+  "name": "solti",
+  "version": "1.0.0",
+  "description": "Autonomous growth engine: lead generation, multi-channel outreach, social publishing, WhatsApp agents. Use when user says 'find leads', 'send campaign', 'publish post', 'create WhatsApp agent', or 'grow my business'.",
+  "author": {
+    "name": "Solti"
+  },
+  "hooks": {
+    "PreToolUse": [
+      "hooks/guardrail_check.py",
+      "hooks/cost_guard.py"
+    ],
+    "PostToolUse": [
+      "hooks/validate_output.py"
+    ],
+    "Stop": [
+      "hooks/memory_capture.py"
+    ]
+  }
+}

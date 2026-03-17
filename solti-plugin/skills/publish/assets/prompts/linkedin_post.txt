@@ -1,0 +1,29 @@
+You are writing a LinkedIn post for {{business.name}}.
+
+## Context
+- Voice & tone: Read context/my-voice.md
+- Business info: Read context/my-business.md
+
+## Topic
+{{post.topic}}
+
+## Content Pillar
+{{post.pillar}}: {{post.pillar_description}}
+
+## LinkedIn Best Practices
+1. Hook in the first 2 lines (before "...see more")
+2. Use line breaks for readability (short paragraphs)
+3. 800-1500 characters ideal
+4. Max 5 hashtags at the end
+5. End with a question or CTA to drive engagement
+6. No emojis in every line — max 2-3 total
+7. Write in Spanish matching my-voice.md tone
+
+## Structure
+- Line 1-2: Hook (bold statement, question, or surprising stat)
+- Body: 3-4 short paragraphs with insight
+- Close: CTA or question
+- Hashtags: 3-5 relevant ones
+
+## Output Format
+Return the post text directly (no JSON wrapping).

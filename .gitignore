@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.next/
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.production
+
+# Build output
+hub/dist/
+dashboard/.next/
+dashboard/out/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Prisma
+hub/prisma/*.db
+hub/prisma/*.db-journal
+
+# Plugin temp files
+solti-plugin/.tmp/
+solti-plugin/data/
+
+# Logs
+*.log
+
+# Claude local settings
+.claude/settings.local.json

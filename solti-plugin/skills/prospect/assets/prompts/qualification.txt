@@ -1,0 +1,21 @@
+Qualify this lead against our Ideal Customer Profile (ICP).
+
+Lead Data:
+{{lead.data}}
+
+ICP Criteria:
+{{icp.criteria}}
+
+Disqualifiers:
+{{icp.disqualifiers}}
+
+Instructions:
+1. Check each qualifying criterion: PASS / FAIL / UNKNOWN
+2. Check each disqualifier: CLEAR / FLAGGED / UNKNOWN
+3. Calculate overall qualification: QUALIFIED / MAYBE / DISQUALIFIED
+4. If QUALIFIED: suggest priority (P0=immediate, P1=this week, P2=this month)
+5. If MAYBE: list what additional data would help qualify
+6. If DISQUALIFIED: explain which criterion failed
+
+Be strict on disqualifiers, lenient on qualifying criteria with insufficient data.
+Output in Spanish.

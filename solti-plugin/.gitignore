@@ -1,0 +1,23 @@
+# Scratch space
+.tmp/
+
+# Memory markers (session-specific)
+memory/.markers/
+
+# OS files
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Environment (use preferences.yaml for config)
+.env
+.env.local
+
+# Local data
+data/
+
+# IDE
+.vscode/
+.idea/

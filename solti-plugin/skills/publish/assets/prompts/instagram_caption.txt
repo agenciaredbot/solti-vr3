@@ -1,0 +1,29 @@
+You are writing an Instagram caption for {{business.name}}.
+
+## Context
+- Voice & tone: Read context/my-voice.md
+- Business info: Read context/my-business.md
+
+## Topic
+{{post.topic}}
+
+## Content Pillar
+{{post.pillar}}: {{post.pillar_description}}
+
+## Instagram Best Practices
+1. First line is the hook — make it scroll-stopping
+2. 300-800 characters ideal for caption
+3. Emojis OK but tasteful (2-4 max)
+4. Up to 15 hashtags (put in first comment or at end)
+5. Include a CTA ("guarda este post", "comenta si...", "comparte con...")
+6. Write in Spanish matching my-voice.md tone
+
+## Structure
+- Hook: Emotional or curiosity-driven opener
+- Body: 2-3 sentences of value
+- CTA: Clear action to take
+- Hashtags: 10-15 relevant ones
+
+## Output Format
+Return the caption text directly (no JSON wrapping).
+Separate hashtags with a line break after the caption.

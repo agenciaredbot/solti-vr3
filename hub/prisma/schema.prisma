@@ -1,0 +1,740 @@
+// Solti VR3 — Full Database Schema
+// PostgreSQL (Supabase) with Row Level Security
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ═══════════════════════════════════════════════════
+// TENANCY & AUTH
+// ═══════════════════════════════════════════════════
+
+model Tenant {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String
+  slug                 String   @unique
+  plan                 String   @default("free") // free, pro, growth, agency
+  stripeCustomerId     String?  @map("stripe_customer_id")
+  stripeSubscriptionId String?  @map("stripe_subscription_id")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  members              TenantMember[]
+  config               TenantConfig?
+  credentials          TenantCredential[]
+  creditBalance        CreditBalance?
+  creditTransactions   CreditTransaction[]
+  subscription         Subscription?
+  affiliateReferrals   AffiliateReferral[]
+  contacts             Contact[]
+  companies            Company[]
+  deals                Deal[]
+  activities           Activity[]
+  tags                 Tag[]
+  lists                ContactList[]
+  campaigns            Campaign[]
+  whatsappInstances    WhatsappInstance[]
+  whatsappBlacklist    WhatsappBlacklist[]
+  mediaFiles           MediaFile[]
+  notifications        Notification[]
+  contentPosts         ContentPost[]
+  jobs                 Job[]
+  scrapeResults        ScrapeResult[]
+  usageLogs            UsageLog[]
+  dailyMetrics         DailyMetric[]
+
+  @@map("tenants")
+}
+
+model TenantMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid // Supabase auth.users.id
+  role      String   @default("owner") // owner, admin, member
+  email     String
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@map("tenant_members")
+}
+
+model TenantConfig {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String    @unique @map("tenant_id") @db.Uuid
+  timezone             String    @default("America/Bogota")
+  language             String    @default("es")
+  defaultModel         String    @default("claude-sonnet-4-20250514") @map("default_model")
+  telegramChatId       String?   @map("telegram_chat_id")
+  telegramLinkedAt     DateTime? @map("telegram_linked_at") @db.Timestamptz
+  pluginApiKey         String?   @unique @map("plugin_api_key")
+  notifyOnJobComplete  Boolean   @default(true) @map("notify_on_job_complete")
+  notifyOnError        Boolean   @default(true) @map("notify_on_error")
+  metadata             Json      @default("{}")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_configs")
+}
+
+// ═══════════════════════════════════════════════════
+// CREDENTIALS & BILLING
+// ═══════════════════════════════════════════════════
+
+model TenantCredential {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  service        String    // apify, phantombuster, brevo, evolution, getlate, instagram, linkedin
+  credType       String    @map("cred_type") // OWN_KEY, PLATFORM, AFFILIATE, SESSION
+  encryptedValue String    @map("encrypted_value") // AES-256-GCM encrypted
+  metadata       Json      @default("{}")
+  isValid        Boolean   @default(true) @map("is_valid")
+  lastTestedAt   DateTime? @map("last_tested_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, service])
+  @@map("tenant_credentials")
+}
+
+model CreditBalance {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String   @unique @map("tenant_id") @db.Uuid
+  planCredits       Int      @default(10) @map("plan_credits")
+  purchasedCredits  Int      @default(0) @map("purchased_credits")
+  usedCredits       Int      @default(0) @map("used_credits")
+  resetsAt          DateTime @map("resets_at") @db.Timestamptz
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("credit_balances")
+}
+
+model CreditTransaction {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  type         String   // deduct, purchase, plan_reset, refund, bonus
+  amount       Int      // Positive = add, negative = deduct
+  balanceAfter Int      @map("balance_after")
+  service      String?
+  action       String?
+  realCostUsd  Decimal? @map("real_cost_usd") @db.Decimal(10, 4)
+  description  String?
+  jobId        String?  @map("job_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("credit_transactions")
+}
+
+model Subscription {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String    @unique @map("tenant_id") @db.Uuid
+  stripeSubscriptionId String    @unique @map("stripe_subscription_id")
+  stripePriceId        String    @map("stripe_price_id")
+  status               String    @default("active") // active, past_due, canceled, trialing
+  currentPeriodStart   DateTime? @map("current_period_start") @db.Timestamptz
+  currentPeriodEnd     DateTime? @map("current_period_end") @db.Timestamptz
+  cancelAt             DateTime? @map("cancel_at") @db.Timestamptz
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model AffiliateReferral {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  service     String    // apify, phantombuster, brevo
+  referralLink String   @map("referral_link")
+  status      String    @default("SENT") // SENT, CLICKED, SIGNED_UP, PAYING, EXPIRED
+  clickedAt   DateTime? @map("clicked_at") @db.Timestamptz
+  signedUpAt  DateTime? @map("signed_up_at") @db.Timestamptz
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, service])
+  @@map("affiliate_referrals")
+}
+
+// ═══════════════════════════════════════════════════
+// CRM
+// ═══════════════════════════════════════════════════
+
+model Contact {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  firstName       String?   @map("first_name")
+  lastName        String?   @map("last_name")
+  email           String?
+  phone           String?
+  whatsapp        String?
+  instagram       String?
+  linkedin        String?
+  tiktok          String?
+  website         String?
+  avatarUrl       String?   @map("avatar_url")
+  status          String    @default("NEW") // NEW, CONTACTED, REPLIED, QUALIFIED, CUSTOMER, LOST
+  score           Int       @default(0) // 0-100
+  source          String?   // google_maps, linkedin, instagram, manual, import
+  sourceUrl       String?   @map("source_url")
+  city            String?
+  country         String?
+  notes           String?
+  customFields    Json      @default("{}") @map("custom_fields")
+  rawData         Json      @default("{}") @map("raw_data")
+  lastContactedAt DateTime? @map("last_contacted_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactCompanies   ContactCompany[]
+  activities         Activity[]
+  deals              Deal[]
+  contactTags        ContactTag[]
+  listMembers        ListMember[]
+  campaignRecipients CampaignRecipient[]
+  campaignEvents     CampaignEvent[]
+  waConversations    WhatsappConversation[]
+  scrapeResults      ScrapeResult[]
+
+  @@index([tenantId])
+  @@index([tenantId, email])
+  @@index([tenantId, status])
+  @@index([tenantId, score(sort: Desc)])
+  @@map("contacts")
+}
+
+model Company {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  name         String
+  domain       String?
+  industry     String?
+  size         String?  // 1-10, 11-50, 51-200, 200+
+  city         String?
+  country      String?
+  website      String?
+  phone        String?
+  description  String?
+  customFields Json     @default("{}") @map("custom_fields")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactCompanies ContactCompany[]
+  deals            Deal[]
+
+  @@map("companies")
+}
+
+model ContactCompany {
+  contactId String  @map("contact_id") @db.Uuid
+  companyId String  @map("company_id") @db.Uuid
+  title     String? // Job title at this company
+  isPrimary Boolean @default(true) @map("is_primary")
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, companyId])
+  @@map("contact_companies")
+}
+
+model Deal {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  contactId      String?   @map("contact_id") @db.Uuid
+  companyId      String?   @map("company_id") @db.Uuid
+  title          String
+  value          Decimal?  @db.Decimal(12, 2)
+  currency       String    @default("USD")
+  stage          String    @default("LEAD") // LEAD, QUALIFIED, PROPOSAL, NEGOTIATION, WON, LOST
+  probability    Int       @default(0) // 0-100
+  expectedCloseAt DateTime? @map("expected_close_at") @db.Date
+  closedAt       DateTime? @map("closed_at") @db.Timestamptz
+  lostReason     String?   @map("lost_reason")
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  company    Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  activities Activity[]
+
+  @@map("deals")
+}
+
+model Activity {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  contactId   String?  @map("contact_id") @db.Uuid
+  dealId      String?  @map("deal_id") @db.Uuid
+  type        String   // note, email_sent, email_received, call, meeting, dm_sent, dm_received, whatsapp, status_change, score_change
+  title       String?
+  description String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  deal    Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  @@index([contactId, createdAt(sort: Desc)])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("activities")
+}
+
+model Tag {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  name     String
+  color    String @default("#6366f1")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactTags ContactTag[]
+
+  @@unique([tenantId, name])
+  @@map("tags")
+}
+
+model ContactTag {
+  contactId String @map("contact_id") @db.Uuid
+  tagId     String @map("tag_id") @db.Uuid
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+  @@map("contact_tags")
+}
+
+model ContactList {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String
+  description String?
+  isDynamic   Boolean  @default(false) @map("is_dynamic")
+  filters     Json     @default("{}") // For dynamic lists
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members   ListMember[]
+  campaigns Campaign[]
+
+  @@map("lists")
+}
+
+model ListMember {
+  listId    String   @map("list_id") @db.Uuid
+  contactId String   @map("contact_id") @db.Uuid
+  addedAt   DateTime @default(now()) @map("added_at") @db.Timestamptz
+
+  list    ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contact Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([listId, contactId])
+  @@map("list_members")
+}
+
+// ═══════════════════════════════════════════════════
+// CAMPAIGNS
+// ═══════════════════════════════════════════════════
+
+model Campaign {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  name            String
+  type            String    // email, instagram_dm, linkedin_dm, whatsapp, multi_channel
+  status          String    @default("DRAFT") // DRAFT, SCHEDULED, LAUNCHING, SENDING, PAUSED, COMPLETED, FAILED, CANCELLED
+  listId          String?   @map("list_id") @db.Uuid
+  mediaId         String?   @map("media_id") @db.Uuid
+  messageText     String?   @map("message_text") // For WhatsApp single-message campaigns (supports {{variables}})
+  recipientConfig Json?     @map("recipient_config") // { listId?, filters?: { tags, scoreMin, status, city, customFields } }
+  scheduledAt     DateTime? @map("scheduled_at") @db.Timestamptz
+  launchedAt      DateTime? @map("launched_at") @db.Timestamptz
+  startedAt       DateTime? @map("started_at") @db.Timestamptz
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz
+  pausedAt        DateTime? @map("paused_at") @db.Timestamptz
+  stats           Json      @default("{\"total\":0,\"sent\":0,\"delivered\":0,\"opened\":0,\"clicked\":0,\"read\":0,\"replied\":0,\"bounced\":0,\"failed\":0,\"pending\":0}")
+  settings        Json      @default("{}")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  list       ContactList?        @relation(fields: [listId], references: [id])
+  media      MediaFile?          @relation(fields: [mediaId], references: [id])
+  steps      CampaignStep[]
+  recipients CampaignRecipient[]
+  events     CampaignEvent[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@map("campaigns")
+}
+
+model CampaignStep {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String   @map("campaign_id") @db.Uuid
+  stepNumber Int      @map("step_number")
+  delayDays  Int      @default(0) @map("delay_days")
+  type       String   // initial, followup, breakup
+  channel    String   // email, instagram_dm, linkedin_dm, whatsapp
+  subject    String?
+  body       String
+  condition  String   @default("no_reply") // no_reply, no_open, always
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, stepNumber])
+  @@map("campaign_steps")
+}
+
+model CampaignRecipient {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId        String    @map("campaign_id") @db.Uuid
+  contactId         String    @map("contact_id") @db.Uuid
+  currentStep       Int       @default(0) @map("current_step")
+  status            String    @default("PENDING") // PENDING, QUEUED, SENDING, SENT, DELIVERED, READ, REPLIED, BOUNCED, UNSUBSCRIBED, FAILED, SKIPPED
+  externalMessageId String?   @map("external_message_id") // Evolution key.id for webhook correlation
+  instanceUsed      String?   @map("instance_used") // Which WhatsApp instance sent this
+  personalizedText  String?   @map("personalized_text") // Resolved message text
+  phone             String?   // Normalized phone for WhatsApp campaigns
+  attempts          Int       @default(0)
+  lastSentAt        DateTime? @map("last_sent_at") @db.Timestamptz
+  nextSendAt        DateTime? @map("next_send_at") @db.Timestamptz
+  deliveredAt       DateTime? @map("delivered_at") @db.Timestamptz
+  readAt            DateTime? @map("read_at") @db.Timestamptz
+  repliedAt         DateTime? @map("replied_at") @db.Timestamptz
+  failedAt          DateTime? @map("failed_at") @db.Timestamptz
+  failReason        String?   @map("fail_reason")
+  metadata          Json      @default("{}")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  events   CampaignEvent[]
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId, status])
+  @@index([externalMessageId])
+  @@index([phone])
+  @@map("campaign_recipients")
+}
+
+model CampaignEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId  String   @map("campaign_id") @db.Uuid
+  recipientId String   @map("recipient_id") @db.Uuid
+  contactId   String   @map("contact_id") @db.Uuid
+  stepNumber  Int?     @map("step_number")
+  eventType   String   @map("event_type") // sent, delivered, opened, clicked, replied, bounced, unsubscribed, failed
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  campaign  Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  recipient CampaignRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  contact   Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, eventType, createdAt])
+  @@map("campaign_events")
+}
+
+// ═══════════════════════════════════════════════════
+// WHATSAPP
+// ═══════════════════════════════════════════════════
+
+model WhatsappInstance {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  instanceName  String    @map("instance_name")
+  instanceId    String    @unique @map("instance_id") // Evolution API instance ID
+  phoneNumber   String?   @map("phone_number")
+  status        String    @default("DISCONNECTED") // DISCONNECTED, CONNECTING, CONNECTED, BANNED
+  systemPrompt    String?   @map("system_prompt")
+  autoReply       Boolean   @default(false) @map("auto_reply")
+  maxHistoryMsgs  Int       @default(10) @map("max_history_msgs")
+  maxTokens       Int       @default(300) @map("max_tokens")
+  fallbackMsg     String?   @map("fallback_msg")
+  cooldownSecs    Int       @default(60) @map("cooldown_secs")
+  webhookUrl      String?   @map("webhook_url")
+  qrCode          String?   @map("qr_code")
+  qrExpiresAt     DateTime? @map("qr_expires_at") @db.Timestamptz
+  connectedAt     DateTime? @map("connected_at") @db.Timestamptz
+  disconnectedAt  DateTime? @map("disconnected_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversations WhatsappConversation[]
+
+  @@index([tenantId, status])
+  @@map("whatsapp_instances")
+}
+
+model WhatsappConversation {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  instanceId    String    @map("instance_id") @db.Uuid
+  contactId     String?   @map("contact_id") @db.Uuid
+  remoteJid     String    @map("remote_jid")
+  remoteName    String?   @map("remote_name")
+  status        String    @default("ACTIVE") // ACTIVE, ARCHIVED, BLOCKED
+  lastMessageAt DateTime? @map("last_message_at") @db.Timestamptz
+  unreadCount   Int       @default(0) @map("unread_count")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  instance WhatsappInstance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  contact  Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  messages WhatsappMessage[]
+
+  @@map("whatsapp_conversations")
+}
+
+model WhatsappMessage {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  direction      String   // INBOUND, OUTBOUND
+  messageType    String   @default("text") @map("message_type") // text, image, audio, video, document
+  content        String?
+  mediaUrl       String?  @map("media_url")
+  isAiGenerated  Boolean  @default(false) @map("is_ai_generated")
+  isAutoReply    Boolean  @default(false) @map("is_auto_reply")
+  campaignId     String?  @map("campaign_id") @db.Uuid
+  status         String   @default("SENT") // PENDING, SENT, DELIVERED, READ, FAILED
+  externalId     String?  @unique @map("external_id") // Evolution message ID — unique for idempotency
+  sentAt         DateTime? @map("sent_at") @db.Timestamptz
+  deliveredAt    DateTime? @map("delivered_at") @db.Timestamptz
+  readAt         DateTime? @map("read_at") @db.Timestamptz
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  conversation WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([campaignId])
+  @@map("whatsapp_messages")
+}
+
+// ═══════════════════════════════════════════════════
+// CONTENT
+// ═══════════════════════════════════════════════════
+
+model ContentPost {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  platform    String    // instagram, facebook, linkedin, tiktok, twitter
+  type        String    @default("post") // post, story, reel, carousel, article
+  content     String
+  mediaUrls   String[]  @map("media_urls")
+  hashtags    String[]
+  status      String    @default("DRAFT") // DRAFT, SCHEDULED, PUBLISHED, FAILED
+  scheduledAt DateTime? @map("scheduled_at") @db.Timestamptz
+  publishedAt DateTime? @map("published_at") @db.Timestamptz
+  externalId  String?   @map("external_id")
+  externalUrl String?   @map("external_url")
+  stats       Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("content_posts")
+}
+
+// ═══════════════════════════════════════════════════
+// JOBS
+// ═══════════════════════════════════════════════════
+
+model Job {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  type        String    // scrape, enrich, campaign_send, dm_send, publish, whatsapp_deploy
+  status      String    @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED, CANCELLED
+  input       Json      @default("{}")
+  output      Json      @default("{}")
+  progress    Int       @default(0) // 0-100
+  error       String?
+  externalId  String?   @map("external_id") // Apify run ID, etc.
+  startedAt   DateTime? @map("started_at") @db.Timestamptz
+  completedAt DateTime? @map("completed_at") @db.Timestamptz
+  creditsCost Int       @default(0) @map("credits_cost")
+  realCostUsd Decimal   @default(0) @map("real_cost_usd") @db.Decimal(10, 4)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scrapeResults ScrapeResult[]
+
+  @@index([tenantId, status, createdAt(sort: Desc)])
+  @@map("jobs")
+}
+
+model ScrapeResult {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId             String   @map("job_id") @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  platform          String
+  rawData           Json     @map("raw_data")
+  processed         Boolean  @default(false)
+  importedContactId String?  @map("imported_contact_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  job     Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [importedContactId], references: [id])
+
+  @@map("scrape_results")
+}
+
+// ═══════════════════════════════════════════════════
+// ANALYTICS
+// ═══════════════════════════════════════════════════
+
+model UsageLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  service      String
+  action       String
+  credType     String   @default("OWN_KEY") @map("cred_type") // OWN_KEY or PLATFORM
+  creditsCost  Int      @default(0) @map("credits_cost")
+  realCostUsd  Decimal  @default(0) @map("real_cost_usd") @db.Decimal(10, 4)
+  durationMs   Int      @default(0) @map("duration_ms")
+  success      Boolean  @default(true)
+  errorMessage String?  @map("error_message")
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@map("usage_logs")
+}
+
+model DailyMetric {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  date                DateTime @db.Date
+  leadsGenerated      Int      @default(0) @map("leads_generated")
+  leadsEnriched       Int      @default(0) @map("leads_enriched")
+  emailsSent          Int      @default(0) @map("emails_sent")
+  emailsOpened        Int      @default(0) @map("emails_opened")
+  dmsSent             Int      @default(0) @map("dms_sent")
+  dmsReplied          Int      @default(0) @map("dms_replied")
+  whatsappMessagesIn  Int      @default(0) @map("whatsapp_messages_in")
+  whatsappMessagesOut Int      @default(0) @map("whatsapp_messages_out")
+  postsPublished      Int      @default(0) @map("posts_published")
+  totalCreditsUsed    Int      @default(0) @map("total_credits_used")
+  totalCostUsd        Decimal  @default(0) @map("total_cost_usd") @db.Decimal(10, 4)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@map("daily_metrics")
+}
+
+// ═══════════════════════════════════════════════════
+// MEDIA FILES
+// ═══════════════════════════════════════════════════
+
+model MediaFile {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  filename    String
+  storagePath String   @map("storage_path")
+  publicUrl   String   @map("public_url")
+  mimeType    String   @map("mime_type")
+  size        Int      // bytes
+  type        String   // IMAGE, VIDEO, DOCUMENT, AUDIO
+  width       Int?
+  height      Int?
+  duration    Int?     // seconds, for video/audio
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@index([tenantId])
+  @@map("media_files")
+}
+
+// ═══════════════════════════════════════════════════
+// WEBHOOK EVENTS (buffer for reliability)
+// ═══════════════════════════════════════════════════
+
+model WebhookEvent {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String?   @map("tenant_id") @db.Uuid
+  source        String    // "evolution", "brevo", "stripe"
+  event         String    // "messages.upsert", "messages.update", etc.
+  instanceName  String?   @map("instance_name")
+  payload       Json
+  processed     Boolean   @default(false)
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz
+  error         String?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([processed, createdAt])
+  @@index([instanceName, event])
+  @@map("webhook_events")
+}
+
+// ═══════════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════════
+
+model Notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  type      String   // CAMPAIGN_COMPLETED, CAMPAIGN_PAUSED, INSTANCE_DISCONNECTED, INSTANCE_NEEDS_QR, LEAD_REPLIED, DAILY_REPORT
+  priority  String   @default("NORMAL") // LOW, NORMAL, HIGH, CRITICAL
+  channel   String   // TELEGRAM, DASHBOARD, BOTH
+  title     String
+  body      String
+  metadata  Json?
+  actionUrl String?  @map("action_url") // Deep link in dashboard
+  read      Boolean  @default(false)
+  readAt    DateTime? @map("read_at") @db.Timestamptz
+  sentAt    DateTime @default(now()) @map("sent_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, read])
+  @@index([tenantId, sentAt])
+  @@map("notifications")
+}
+
+// ═══════════════════════════════════════════════════
+// WHATSAPP BLACKLIST
+// ═══════════════════════════════════════════════════
+
+model WhatsappBlacklist {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  phone     String
+  reason    String?  // "opt-out", "reported_spam", "manual"
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, phone])
+  @@map("whatsapp_blacklist")
+}

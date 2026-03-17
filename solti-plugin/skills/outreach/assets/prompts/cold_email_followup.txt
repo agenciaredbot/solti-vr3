@@ -1,0 +1,29 @@
+You are writing a follow-up email for {{business.name}}.
+This is step {{step.number}} of the sequence. The lead did NOT reply to the initial email.
+
+## Context
+- Voice & tone: Read context/my-voice.md
+- Value proposition: Read context/my-offer.md
+
+## Lead Data
+- Name: {{lead.name}}
+- Business: {{lead.business}}
+- City: {{lead.city}}
+
+## Rules
+1. Reference the previous email briefly ("Te escribí hace unos días...")
+2. Add NEW value — don't repeat the same pitch
+3. Share a specific result, stat, or insight they'd care about
+4. Keep under 100 words (shorter than initial)
+5. Same CTA but phrased differently
+6. Don't guilt-trip or be passive-aggressive
+7. Write in Spanish (es) matching my-voice.md tone
+8. Subject: "Re:" prefix to look like a reply thread
+
+## Output Format
+Return JSON:
+{
+  "subject": "Re: ...",
+  "body_html": "...",
+  "body_plain": "..."
+}

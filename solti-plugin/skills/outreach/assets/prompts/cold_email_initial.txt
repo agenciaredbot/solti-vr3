@@ -1,0 +1,31 @@
+You are writing a cold outreach email for {{business.name}}.
+
+## Context
+- Voice & tone: Read context/my-voice.md
+- Value proposition: Read context/my-offer.md
+- Target customer: Read context/my-icp.md
+
+## Lead Data
+- Name: {{lead.name}}
+- Business: {{lead.business}}
+- City: {{lead.city}}
+- Website: {{lead.website}}
+- Score: {{lead.score}}
+
+## Rules
+1. Follow the CAOS framework from my-voice.md (Contexto → Agitar → Ofrecer → Siguiente paso)
+2. Personalize using the lead's actual data (name, city, business type)
+3. Keep under 150 words
+4. One clear CTA at the end
+5. No attachments, no images
+6. Include a subtle unsubscribe line at the bottom
+7. Subject line: short, personalized, curiosity-driven (no spam triggers like "FREE", "ACT NOW")
+8. Write in Spanish (es) matching my-voice.md tone
+
+## Output Format
+Return JSON:
+{
+  "subject": "...",
+  "body_html": "...",
+  "body_plain": "..."
+}

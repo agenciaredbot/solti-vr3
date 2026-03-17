@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Check if Service Hub is online and responsive.
+# Usage: bin/solti-hub-check
+# Output: Single line status (designed for zero-token overhead)
+
+HUB_URL="${SOLTI_HUB_URL:-http://localhost:4000}"
+API_KEY="${SOLTI_API_KEY:-}"
+
+if [ -z "$HUB_URL" ] || [ "$HUB_URL" = "" ]; then
+  echo "Hub: NOT CONFIGURED — Running in standalone mode (local SQLite CRM)"
+  exit 0
+fi
+
+# Health check doesn't need auth, but we test it anyway
+response=$(curl -s -o /dev/null -w "%{http_code}" \
+  --max-time 3 \
+  "$HUB_URL/health" 2>/dev/null)
+
+if [ "$response" = "200" ]; then
+  echo "Hub: ONLINE ($HUB_URL)"
+  exit 0
+elif [ "$response" = "000" ]; then
+  echo "Hub: OFFLINE — Cannot connect to $HUB_URL. Start with: docker compose up -d"
+  exit 1
+elif [ "$response" = "401" ]; then
+  echo "Hub: AUTH ERROR — API key invalid. Update via /connect or preferences.yaml"
+  exit 1
+else
+  echo "Hub: ERROR ($response) — Unexpected response from $HUB_URL"
+  exit 1
+fi

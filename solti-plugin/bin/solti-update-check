@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Check for Solti plugin updates (24-hour cache).
+# Usage: bin/solti-update-check
+# Output: Single line with version status
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CACHE_DIR="${HOME}/.solti"
+CACHE_FILE="${CACHE_DIR}/update-check-cache"
+VERSION_FILE="${SCRIPT_DIR}/../VERSION"
+REPO_URL="https://raw.githubusercontent.com/solti-app/solti-vr3/main/plugin/VERSION"
+
+mkdir -p "$CACHE_DIR"
+
+# Check cache freshness (24 hours = 86400 seconds)
+if [ -f "$CACHE_FILE" ]; then
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    cache_age=$(($(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null)))
+  else
+    cache_age=$(($(date +%s) - $(stat -c %Y "$CACHE_FILE" 2>/dev/null)))
+  fi
+  if [ "$cache_age" -lt 86400 ]; then
+    cat "$CACHE_FILE"
+    exit 0
+  fi
+fi
+
+# Read local version
+LOCAL_VERSION=$(cat "$VERSION_FILE" 2>/dev/null || echo "0.0.0")
+
+# Fetch remote version (3s timeout, silent)
+REMOTE_VERSION=$(curl -s --max-time 3 "$REPO_URL" 2>/dev/null | tr -d '[:space:]')
+
+if [ -z "$REMOTE_VERSION" ]; then
+  echo "Solti v${LOCAL_VERSION} (update check failed — offline?)" | tee "$CACHE_FILE"
+  exit 0
+fi
+
+if [ "$LOCAL_VERSION" = "$REMOTE_VERSION" ]; then
+  echo "Solti v${LOCAL_VERSION} (up to date)" | tee "$CACHE_FILE"
+else
+  echo "Solti v${LOCAL_VERSION} → v${REMOTE_VERSION} available. Run /upgrade to update." | tee "$CACHE_FILE"
+fi

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "solti-hub": {
+      "command": "npx",
+      "args": ["tsx", "/Users/res/Documents/Claude_Solti_vr3/hub/src/mcp/server.ts"],
+      "env": {
+        "SOLTI_HUB_URL": "http://localhost:4000",
+        "SOLTI_API_KEY": "sk_solti_6954089f1c2f062e93e629d47bc676f5fe664a53478a7471"
+      }
+    }
+  }
+}

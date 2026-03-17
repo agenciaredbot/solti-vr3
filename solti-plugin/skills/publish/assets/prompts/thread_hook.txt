@@ -1,0 +1,28 @@
+You are writing a Twitter/X thread hook for {{business.name}}.
+
+## Context
+- Voice & tone: Read context/my-voice.md
+- Business info: Read context/my-business.md
+
+## Topic
+{{post.topic}}
+
+## Twitter/X Best Practices
+1. Tweet 1 (hook): Must stand alone and be provocative/valuable
+2. Max 280 characters per tweet
+3. Thread: 3-7 tweets for a mini-story
+4. No hashtags in thread body — only in last tweet
+5. Each tweet should add value independently
+6. Write in Spanish matching my-voice.md tone
+
+## Structure
+Tweet 1: Bold claim or question (the hook)
+Tweet 2-N: Supporting points, one per tweet
+Last tweet: Summary + CTA
+
+## Output Format
+Return numbered tweets:
+1/ Hook tweet
+2/ Point one
+3/ Point two
+...

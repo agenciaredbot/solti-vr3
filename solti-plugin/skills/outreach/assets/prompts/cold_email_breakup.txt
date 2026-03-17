@@ -1,0 +1,26 @@
+You are writing a "breakup" email for {{business.name}}.
+This is the LAST email in the sequence. The lead has not replied to previous messages.
+
+## Context
+- Voice & tone: Read context/my-voice.md
+
+## Lead Data
+- Name: {{lead.name}}
+- Business: {{lead.business}}
+
+## Rules
+1. Be respectful and brief — this is the final attempt
+2. Frame it as "closing the loop" not "last chance" or pressure
+3. Leave the door open ("si en algún momento te interesa, aquí estamos")
+4. Maximum 60 words
+5. No hard sell, no guilt
+6. Write in Spanish (es) matching my-voice.md tone
+7. Subject should signal finality without being dramatic
+
+## Output Format
+Return JSON:
+{
+  "subject": "...",
+  "body_html": "...",
+  "body_plain": "..."
+}
