@@ -22,6 +22,7 @@ export const PLAN_CREDITS: Record<string, number> = {
   pro: 50,
   growth: 200,
   agency: 500,
+  full_access: 999999,
 }
 
 export const CREDIT_PACKAGES = [

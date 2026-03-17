@@ -46,6 +46,11 @@ const PLAN_DETAILS: Record<string, { name: string; price: string; features: stri
     price: '$199/mes',
     features: ['Leads ilimitados', 'Emails ilimitados', '500 creditos', '10 instancias WA', '2,000 DMs/mes'],
   },
+  full_access: {
+    name: 'Full Access',
+    price: 'Admin',
+    features: ['Sin limites', 'Todas las APIs', 'Creditos ilimitados', 'WhatsApp ilimitado', 'Acceso total'],
+  },
 }
 
 export default async function BillingPage() {
