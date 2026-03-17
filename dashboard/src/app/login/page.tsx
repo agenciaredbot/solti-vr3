@@ -5,13 +5,20 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 
+function getSafeRedirect(value: string | null): string {
+  if (!value) return '/dashboard'
+  // Only allow relative paths starting with / and not //
+  if (value.startsWith('/') && !value.startsWith('//') && !value.includes('://')) return value
+  return '/dashboard'
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') || '/dashboard'
+  const redirect = getSafeRedirect(searchParams.get('redirect'))
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()

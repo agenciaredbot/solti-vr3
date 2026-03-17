@@ -101,7 +101,9 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                     {step.subject && (
                       <p className="text-sm text-text-muted mb-1">Asunto: <span className="text-text">{step.subject}</span></p>
                     )}
-                    <p className="text-xs text-text-muted line-clamp-2" dangerouslySetInnerHTML={{ __html: step.body.replace(/<[^>]+>/g, ' ').slice(0, 200) }} />
+                    <p className="text-xs text-text-muted line-clamp-2">
+                      {(step.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200)}
+                    </p>
                   </div>
                 ))}
                 {steps.length === 0 && (

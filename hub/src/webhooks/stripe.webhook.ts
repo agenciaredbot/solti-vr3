@@ -26,8 +26,19 @@ stripeWebhook.post('/', async (c) => {
 
   let event: any
 
-  if (webhookSecret && sig) {
-    // Verify signature in production
+  const isProduction = process.env.NODE_ENV === 'production'
+
+  if (isProduction && !webhookSecret) {
+    logger.error('STRIPE_WEBHOOK_SECRET not configured in production — rejecting webhook')
+    return c.json({ error: 'Webhook not configured' }, 500)
+  }
+
+  if (webhookSecret) {
+    // Verify signature (required in production)
+    if (!sig) {
+      logger.warn('Stripe webhook missing signature header')
+      return c.json({ error: 'Missing signature' }, 400)
+    }
     try {
       const Stripe = (await import('stripe')).default
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '')
@@ -38,7 +49,8 @@ stripeWebhook.post('/', async (c) => {
       return c.json({ error: 'Invalid signature' }, 400)
     }
   } else {
-    // Dev mode — no signature verification
+    // Dev mode only — no signature verification
+    logger.warn('Stripe webhook running WITHOUT signature verification (dev mode)')
     event = await c.req.json()
   }
 

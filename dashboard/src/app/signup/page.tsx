@@ -8,8 +8,10 @@ const PLANS = [
   { id: 'free', name: 'Free', price: '$0', desc: '50 leads, 100 emails, 10 credits', popular: false },
   { id: 'pro', name: 'Pro', price: '$29/mo', desc: '500 leads, 2K emails, 1 WA, 50 credits', popular: true },
   { id: 'growth', name: 'Growth', price: '$79/mo', desc: '2K leads, 10K emails, 3 WA, 200 credits', popular: false },
-  { id: 'full_access', name: 'Full Access', price: 'Admin', desc: 'Sin limites — acceso total a todas las APIs y funciones', popular: false },
 ]
+
+// full_access plan is admin-only — assigned manually via database, never shown in signup UI
+const VALID_SIGNUP_PLANS = ['free', 'pro', 'growth']
 
 export default function SignupPage() {
   const [step, setStep] = useState<'plan' | 'register'>('plan')
@@ -26,6 +28,9 @@ export default function SignupPage() {
     setLoading(true)
     setError('')
 
+    // Server-side validation: only allow valid signup plans
+    const safePlan = VALID_SIGNUP_PLANS.includes(selectedPlan) ? selectedPlan : 'free'
+
     const supabase = createClient()
     const { error } = await supabase.auth.signUp({
       email,
@@ -33,7 +38,7 @@ export default function SignupPage() {
       options: {
         data: {
           business_name: businessName,
-          plan: selectedPlan,
+          plan: safePlan,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },

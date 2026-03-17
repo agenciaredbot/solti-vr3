@@ -7,8 +7,21 @@
  */
 
 import type { Context, Next } from 'hono'
+import { jwtVerify } from 'jose'
 import { prisma } from '../lib/prisma.js'
 import { AuthError } from '../lib/errors.js'
+import { logger } from '../lib/logger.js'
+
+// Supabase JWT secret for signature verification
+// Get this from Supabase Dashboard > Settings > API > JWT Secret
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET
+const JWT_SECRET = SUPABASE_JWT_SECRET
+  ? new TextEncoder().encode(SUPABASE_JWT_SECRET)
+  : null
+
+if (!JWT_SECRET) {
+  logger.warn('SUPABASE_JWT_SECRET not set — JWT verification will use Supabase API fallback (slower)')
+}
 
 export interface TenantContext {
   tenantId: string
@@ -68,15 +81,35 @@ async function resolveFromApiKey(apiKey: string): Promise<TenantContext | null> 
 
 /**
  * Resolve tenant from Supabase JWT.
- * Extracts user_id from JWT payload, looks up tenant_members.
+ * VERIFIES signature before trusting payload, then looks up tenant_members.
  */
 async function resolveFromJwt(token: string): Promise<TenantContext | null> {
   try {
-    // Decode JWT payload (Supabase JWTs are standard)
-    const payload = JSON.parse(
-      Buffer.from(token.split('.')[1], 'base64').toString()
-    )
-    const userId = payload.sub
+    let userId: string | undefined
+
+    if (JWT_SECRET) {
+      // Fast path: verify JWT signature locally
+      const { payload } = await jwtVerify(token, JWT_SECRET, {
+        issuer: 'supabase',
+      })
+      userId = payload.sub as string | undefined
+    } else {
+      // Fallback: verify token via Supabase API (slower but secure)
+      const supabaseUrl = process.env.SUPABASE_URL
+      const serviceKey = process.env.SUPABASE_SERVICE_KEY
+      if (!supabaseUrl || !serviceKey) return null
+
+      const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': serviceKey,
+        },
+      })
+      if (!res.ok) return null
+      const user = await res.json() as { id?: string }
+      userId = user.id
+    }
+
     if (!userId) return null
 
     // Find tenant membership
