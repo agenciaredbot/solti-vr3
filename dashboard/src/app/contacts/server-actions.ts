@@ -38,6 +38,33 @@ export async function updateContactStatus(contactId: string, status: string) {
   }
 }
 
+export async function updateContact(contactId: string, data: Record<string, any>) {
+  try {
+    return await hubFetch(`/contacts/${contactId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
+export async function getContact(contactId: string) {
+  try {
+    return await hubFetch(`/contacts/${contactId}`)
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
+export async function getContactActivities(contactId: string) {
+  try {
+    return await hubFetch(`/contacts/${contactId}/activities`)
+  } catch (e: any) {
+    return { data: [], error: e.message }
+  }
+}
+
 export async function addTagToContact(contactId: string, tagName: string, tagColor?: string) {
   try {
     return await hubFetch(`/contacts/${contactId}/tags`, {

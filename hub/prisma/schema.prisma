@@ -190,8 +190,20 @@ model Contact {
   instagram       String?
   linkedin        String?
   tiktok          String?
+  twitter         String?   // X/Twitter handle or URL
+  facebook        String?
+  youtube         String?
   website         String?
   avatarUrl       String?   @map("avatar_url")
+  company         String?   // Company name (quick field, no relation needed)
+  jobTitle        String?   @map("job_title")
+  industry        String?
+  language        String?   // es, en, pt, etc.
+  gender          String?   // M, F, Other, Unknown
+  birthday        DateTime? @db.Date
+  address         String?
+  zipCode         String?   @map("zip_code")
+  state           String?   // State/Province/Region
   status          String    @default("NEW") // NEW, CONTACTED, REPLIED, QUALIFIED, CUSTOMER, LOST
   score           Int       @default(0) // 0-100
   source          String?   // google_maps, linkedin, instagram, manual, import
@@ -199,6 +211,8 @@ model Contact {
   city            String?
   country         String?
   notes           String?
+  revenue         String?   // Estimated revenue range: <10k, 10k-50k, 50k-200k, 200k+
+  employees       String?   // Company size: 1-10, 11-50, 51-200, 200+
   customFields    Json      @default("{}") @map("custom_fields")
   rawData         Json      @default("{}") @map("raw_data")
   lastContactedAt DateTime? @map("last_contacted_at") @db.Timestamptz

@@ -6,10 +6,11 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { fetchContacts, updateContactStatus } from './server-actions'
+import { fetchContacts, updateContactStatus, addTagToContact } from './server-actions'
 import { CreateListModal } from './create-list-modal'
 import { AddTagModal } from './add-tag-modal'
 import { KanbanBoard } from './kanban-board'
+import { ContactDrawer } from './contact-drawer'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -84,6 +85,9 @@ export function ContactsTable({ initialContacts, initialTotal, tags }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [listModalOpen, setListModalOpen] = useState(false)
   const [tagModalOpen, setTagModalOpen] = useState(false)
+  const [drawerId, setDrawerId] = useState<string | null>(null)
+  const [inlineTagInput, setInlineTagInput] = useState<string | null>(null)
+  const [inlineTagName, setInlineTagName] = useState('')
 
   const loadContacts = useCallback(async () => {
     setLoading(true)
@@ -127,6 +131,19 @@ export function ContactsTable({ initialContacts, initialTotal, tags }: Props) {
   function toggleAll() {
     if (selectedIds.size === contacts.length) setSelectedIds(new Set())
     else setSelectedIds(new Set(contacts.map(c => c.id)))
+  }
+
+  async function handleInlineStatusChange(contactId: string, newStatus: string) {
+    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, status: newStatus } : c))
+    await updateContactStatus(contactId, newStatus)
+  }
+
+  async function handleInlineTagAdd(contactId: string) {
+    if (!inlineTagName.trim()) return
+    await addTagToContact(contactId, inlineTagName.trim())
+    setInlineTagInput(null)
+    setInlineTagName('')
+    loadContacts()
   }
 
   async function handleKanbanDrop(contactId: string, newStatus: string) {
@@ -236,31 +253,55 @@ export function ContactsTable({ initialContacts, initialTotal, tags }: Props) {
                       <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} className="rounded" />
                     </td>
                     <td className="px-3 py-2.5">
-                      <Link href={`/contacts/${c.id}`} className="font-medium text-text hover:text-primary transition-colors">
+                      <button onClick={() => setDrawerId(c.id)} className="font-medium text-text hover:text-primary transition-colors text-left">
                         {[c.firstName, c.lastName].filter(Boolean).join(' ') || '—'}
-                      </Link>
+                      </button>
                     </td>
-                    <td className="px-3 py-2.5 text-text-muted">{c.email || '—'}</td>
-                    <td className="px-3 py-2.5 text-text-muted">{c.city || '—'}</td>
+                    <td className="px-3 py-2.5 text-text-muted text-xs">{c.email || '—'}</td>
+                    <td className="px-3 py-2.5 text-text-muted text-xs">{c.city || '—'}</td>
                     <td className="px-3 py-2.5">
-                      <span className={`font-mono font-bold ${scoreColor(c.score)}`}>{c.score}</span>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Badge variant={STATUS_COLORS[c.status] || 'default'}>
-                        {STATUS_LABELS[c.status] || c.status}
-                      </Badge>
+                      <span className={`font-mono font-bold text-sm ${scoreColor(c.score)}`}>{c.score}</span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <div className="flex gap-1 flex-wrap">
+                      <select
+                        value={c.status}
+                        onChange={e => handleInlineStatusChange(c.id, e.target.value)}
+                        className="bg-transparent border border-border/50 rounded px-1.5 py-0.5 text-xs focus:border-primary/50 focus:outline-none cursor-pointer"
+                      >
+                        {STATUS_OPTIONS.filter(o => o.value).map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex gap-1 flex-wrap items-center">
                         {c.contactTags?.map(ct => (
                           <span
                             key={ct.tag.id}
-                            className="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                            className="px-1.5 py-0.5 rounded-full text-[10px] font-medium"
                             style={{ backgroundColor: ct.tag.color + '20', color: ct.tag.color }}
                           >
                             {ct.tag.name}
                           </span>
                         ))}
+                        {inlineTagInput === c.id ? (
+                          <input
+                            autoFocus
+                            value={inlineTagName}
+                            onChange={e => setInlineTagName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleInlineTagAdd(c.id); if (e.key === 'Escape') { setInlineTagInput(null); setInlineTagName('') } }}
+                            onBlur={() => { setInlineTagInput(null); setInlineTagName('') }}
+                            placeholder="tag..."
+                            className="w-16 px-1 py-0.5 bg-surface border border-border rounded text-[10px] text-text focus:border-primary/50 focus:outline-none"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setInlineTagInput(c.id)}
+                            className="w-5 h-5 rounded-full border border-dashed border-border/50 text-text-muted/50 hover:text-text-muted hover:border-border text-[10px] flex items-center justify-center"
+                          >
+                            +
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -314,6 +355,15 @@ export function ContactsTable({ initialContacts, initialTotal, tags }: Props) {
         existingTags={tags}
         onSuccess={handleBulkSuccess}
       />
+
+      {drawerId && (
+        <ContactDrawer
+          contactId={drawerId}
+          allTags={tags}
+          onClose={() => setDrawerId(null)}
+          onUpdate={() => loadContacts()}
+        />
+      )}
     </div>
   )
 }
