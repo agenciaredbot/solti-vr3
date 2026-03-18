@@ -26,6 +26,7 @@ import { notificationRoutes } from './api/notifications.routes.js'
 import { creditRoutes } from './api/credits.routes.js'
 import { billingRoutes } from './api/billing.routes.js'
 import { scrapingRoutes } from './api/scraping.routes.js'
+import { tagRoutes } from './api/tags.routes.js'
 import { evolutionWebhook } from './webhooks/evolution.webhook.js'
 import { brevoWebhook } from './webhooks/brevo.webhook.js'
 import { telegramWebhook } from './webhooks/telegram.webhook.js'
@@ -71,6 +72,7 @@ api.route('/notifications', notificationRoutes)
 api.route('/credits', creditRoutes)
 api.route('/billing', billingRoutes)
 api.route('/scraping', scrapingRoutes)
+api.route('/tags', tagRoutes)
 
 app.route('/api/v1', api)
 

@@ -23,6 +23,8 @@ const lists = new Hono()
 const createListSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
+  isDynamic: z.boolean().optional().default(false),
+  filters: z.record(z.any()).optional().default({}),
 })
 
 // ═══ GET / — List all lists ═══
@@ -50,6 +52,8 @@ lists.post('/', async (c) => {
       tenantId,
       name: body.name,
       description: body.description,
+      isDynamic: body.isDynamic,
+      filters: body.filters as any,
     },
   })
 

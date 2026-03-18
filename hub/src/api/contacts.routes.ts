@@ -46,10 +46,13 @@ const updateContactSchema = createContactSchema.partial()
 
 const listQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(25),
+  limit: z.coerce.number().min(1).max(200).default(25),
   status: z.string().optional(),
   source: z.string().optional(),
   search: z.string().optional(),
+  tag: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
   sortBy: z.enum(['created_at', 'updated_at', 'score', 'first_name']).default('created_at'),
   sortDir: z.enum(['asc', 'desc']).default('desc'),
 })
@@ -62,6 +65,9 @@ contacts.get('/', async (c) => {
   const where: Record<string, unknown> = { tenantId }
   if (query.status) where.status = query.status
   if (query.source) where.source = query.source
+  if (query.tag) where.contactTags = { some: { tagId: query.tag } }
+  if (query.city) where.city = { contains: query.city, mode: 'insensitive' }
+  if (query.country) where.country = { contains: query.country, mode: 'insensitive' }
   if (query.search) {
     where.OR = [
       { firstName: { contains: query.search, mode: 'insensitive' } },

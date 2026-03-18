@@ -1,5 +1,6 @@
 import { hubFetch } from '@/lib/hub'
 import { Badge } from '@/components/ui/badge'
+import { TagManager } from './tag-manager'
 
 const STATUS_VARIANT: Record<string, 'info' | 'warning' | 'success' | 'primary' | 'danger' | 'default'> = {
   NEW: 'info',
@@ -28,7 +29,10 @@ async function getActivities(id: string) {
 
 export default async function ContactDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [contactRes, activitiesRes] = await Promise.all([getContact(id), getActivities(id)])
+  async function getTags() {
+    try { return await hubFetch('/tags') } catch { return { data: [] } }
+  }
+  const [contactRes, activitiesRes, tagsRes] = await Promise.all([getContact(id), getActivities(id), getTags()])
   const contact = contactRes?.data || contactRes
 
   if (!contact) {
@@ -117,18 +121,18 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
             </div>
           </div>
 
-          {contact.tags?.length > 0 && (
-            <div className="bg-surface-light border border-border rounded-xl p-6">
-              <h2 className="text-sm font-semibold text-text-muted uppercase mb-3">Tags</h2>
-              <div className="flex flex-wrap gap-2">
-                {contact.tags.map((t: any) => (
-                  <Badge key={t.tag?.id || t.id} variant="default">
-                    {t.tag?.name || t.name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
+          <div className="bg-surface-light border border-border rounded-xl p-6">
+            <h2 className="text-sm font-semibold text-text-muted uppercase mb-3">Tags</h2>
+            <TagManager
+              contactId={id}
+              currentTags={(contact.contactTags || contact.tags || []).map((t: any) => ({
+                id: t.tag?.id || t.id,
+                name: t.tag?.name || t.name,
+                color: t.tag?.color || '#6366f1',
+              }))}
+              allTags={(tagsRes.data || []).map((t: any) => ({ id: t.id, name: t.name, color: t.color }))}
+            />
+          </div>
         </div>
       </div>
     </div>

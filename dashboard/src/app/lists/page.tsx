@@ -10,9 +10,18 @@ async function getLists() {
   }
 }
 
+async function getTags() {
+  try {
+    return await hubFetch('/tags')
+  } catch {
+    return { data: [] }
+  }
+}
+
 export default async function ListsPage() {
-  const result = await getLists()
+  const [result, tagsRes] = await Promise.all([getLists(), getTags()])
   const lists = result.data || []
+  const tags = tagsRes.data || []
 
   return (
     <div>
@@ -21,7 +30,7 @@ export default async function ListsPage() {
           <h1 className="text-3xl font-bold">Listas de Contactos</h1>
           <p className="text-text-muted mt-1">{lists.length} listas</p>
         </div>
-        <ListActions />
+        <ListActions tags={tags} />
       </div>
 
       {lists.length === 0 ? (
