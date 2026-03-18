@@ -140,7 +140,7 @@ whatsapp.post('/instances/sync', async (c) => {
           instanceName: evo.name,
           instanceId: evo.id || evo.name,
           status: stateMap[evo.connectionStatus] || 'DISCONNECTED',
-          phone: evo.ownerJid?.split('@')[0] || null,
+          phoneNumber: evo.ownerJid?.split('@')[0] || null,
         },
       })
       imported++
@@ -157,7 +157,7 @@ whatsapp.post('/instances/sync', async (c) => {
         where: { id: db.id },
         data: {
           status: stateMap[evo.connectionStatus] || db.status,
-          phone: evo.ownerJid?.split('@')[0] || db.phone,
+          phoneNumber: evo.ownerJid?.split('@')[0] || db.phoneNumber,
         },
       })
     }
