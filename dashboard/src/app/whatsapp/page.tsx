@@ -3,6 +3,7 @@ import { hubFetch } from '@/lib/hub'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { WhatsAppActions } from './actions'
+import { syncInstances } from './server-actions'
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   CONNECTED: 'success',
@@ -12,6 +13,10 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default
 
 async function getInstances() {
   try {
+    // Auto-sync with Evolution on page load to keep statuses fresh
+    const syncResult = await syncInstances()
+    if (syncResult?.data) return syncResult
+    // Fallback to regular fetch if sync fails
     return await hubFetch('/whatsapp/instances')
   } catch {
     return { data: [] }

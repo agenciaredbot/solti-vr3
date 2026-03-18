@@ -55,3 +55,11 @@ export async function getInstanceQR(id: string) {
     return { error: e.message }
   }
 }
+
+export async function syncInstances() {
+  try {
+    return await hubFetch('/whatsapp/instances/sync', { method: 'POST' })
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}

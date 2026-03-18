@@ -46,6 +46,14 @@ whatsapp.post('/instances', async (c) => {
   const safeName = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
   const instanceName = `solti-${tenantSlug}-${safeName}`
 
+  // Check if DB already has this instance (re-creation scenario)
+  const existing = await prisma.whatsappInstance.findFirst({
+    where: { tenantId, instanceName },
+  })
+  if (existing) {
+    return c.json({ data: existing }, 200)
+  }
+
   // Create in Evolution API
   const result = await routeService({
     tenantId,
@@ -58,11 +66,13 @@ whatsapp.post('/instances', async (c) => {
     },
   })
 
-  if (!result.success) {
+  // If Evolution says "already exists", still register in DB
+  const evoData = result.success ? (result.data as any) : {}
+  const alreadyExists = !result.success && JSON.stringify(result.data).includes('already')
+
+  if (!result.success && !alreadyExists) {
     return c.json({ error: 'Failed to create WhatsApp instance', details: result.data }, 500)
   }
-
-  const evoData = result.data as any
 
   // Store in DB
   const instance = await prisma.whatsappInstance.create({
@@ -70,7 +80,7 @@ whatsapp.post('/instances', async (c) => {
       tenantId,
       instanceName,
       instanceId: evoData.instance?.instanceId || instanceName,
-      status: 'CONNECTING',
+      status: alreadyExists ? 'DISCONNECTED' : 'CONNECTING',
       qrCode: evoData.qrcode?.base64 || null,
       webhookUrl: webhookUrl || null,
     },
@@ -94,6 +104,68 @@ whatsapp.post('/instances', async (c) => {
 
   logger.info({ tenantId, instanceName, instanceId: instance.id }, 'WhatsApp instance created')
   return c.json({ data: { ...instance, qrCode: evoData.qrcode?.base64 } }, 201)
+})
+
+// ═══ POST /instances/sync — Import instances from Evolution to DB ═══
+whatsapp.post('/instances/sync', async (c) => {
+  const { tenantId, tenantSlug } = getTenant(c)
+
+  // Fetch all instances from Evolution
+  const result = await routeService({
+    tenantId,
+    service: 'evolution',
+    action: 'list_instances',
+    params: {},
+  })
+
+  if (!result.success) {
+    return c.json({ error: 'Failed to fetch Evolution instances' }, 500)
+  }
+
+  const rawData = result.data as any
+  const evoInstances: any[] = Array.isArray(rawData) ? rawData : (rawData?.instances || [])
+  const prefix = `solti-${tenantSlug}`
+  const tenantInstances = evoInstances.filter((i: any) => i.name?.startsWith(prefix))
+
+  let imported = 0
+  for (const evo of tenantInstances) {
+    const exists = await prisma.whatsappInstance.findFirst({
+      where: { tenantId, instanceName: evo.name },
+    })
+    if (!exists) {
+      const stateMap: Record<string, string> = { open: 'CONNECTED', close: 'DISCONNECTED', connecting: 'CONNECTING' }
+      await prisma.whatsappInstance.create({
+        data: {
+          tenantId,
+          instanceName: evo.name,
+          instanceId: evo.id || evo.name,
+          status: stateMap[evo.connectionStatus] || 'DISCONNECTED',
+          phone: evo.ownerJid?.split('@')[0] || null,
+        },
+      })
+      imported++
+    }
+  }
+
+  // Also update status of existing instances
+  const dbInstances = await prisma.whatsappInstance.findMany({ where: { tenantId } })
+  for (const db of dbInstances) {
+    const evo = evoInstances.find((i: any) => i.name === db.instanceName)
+    if (evo) {
+      const stateMap: Record<string, string> = { open: 'CONNECTED', close: 'DISCONNECTED', connecting: 'CONNECTING' }
+      await prisma.whatsappInstance.update({
+        where: { id: db.id },
+        data: {
+          status: stateMap[evo.connectionStatus] || db.status,
+          phone: evo.ownerJid?.split('@')[0] || db.phone,
+        },
+      })
+    }
+  }
+
+  const all = await prisma.whatsappInstance.findMany({ where: { tenantId }, orderBy: { createdAt: 'desc' } })
+  logger.info({ tenantId, imported, total: all.length }, 'WhatsApp instances synced')
+  return c.json({ data: all, imported })
 })
 
 // ═══ GET /instances/:id — Get instance ═══
