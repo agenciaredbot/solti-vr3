@@ -42,7 +42,11 @@ evolutionWebhook.post('/', async (c) => {
   const body = await c.req.json() as EvolutionEvent
   const { event, instance: instanceName, data } = body
 
+  // Log ALL incoming webhook events for debugging
+  logger.info({ event, instanceName: instanceName || body.instance, dataKeys: data ? Object.keys(data) : 'no-data' }, 'Evolution webhook received')
+
   if (!event || !instanceName) {
+    logger.warn({ bodyKeys: Object.keys(body) }, 'Invalid webhook payload — missing event or instance')
     return c.json({ error: 'Invalid webhook payload' }, 400)
   }
 
