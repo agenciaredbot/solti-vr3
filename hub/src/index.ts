@@ -25,6 +25,7 @@ import { mediaRoutes } from './api/media.routes.js'
 import { notificationRoutes } from './api/notifications.routes.js'
 import { creditRoutes } from './api/credits.routes.js'
 import { billingRoutes } from './api/billing.routes.js'
+import { scrapingRoutes } from './api/scraping.routes.js'
 import { evolutionWebhook } from './webhooks/evolution.webhook.js'
 import { brevoWebhook } from './webhooks/brevo.webhook.js'
 import { telegramWebhook } from './webhooks/telegram.webhook.js'
@@ -69,6 +70,7 @@ api.route('/media', mediaRoutes)
 api.route('/notifications', notificationRoutes)
 api.route('/credits', creditRoutes)
 api.route('/billing', billingRoutes)
+api.route('/scraping', scrapingRoutes)
 
 app.route('/api/v1', api)
 

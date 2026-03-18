@@ -43,13 +43,28 @@ export async function hubFetch(path: string, options?: RequestInit): Promise<any
 }
 
 // Client-side calls (through rewrite proxy)
+// Automatically attaches Supabase JWT for authentication
 export async function hubClientFetch(path: string, options?: RequestInit): Promise<any> {
+  // Get Supabase session token for auth
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string> || {}),
+  }
+
+  try {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`
+    }
+  } catch {
+    // If Supabase client fails, proceed without token
+  }
+
   const res = await fetch(`/api/hub${path}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
   })
 
   if (!res.ok) {

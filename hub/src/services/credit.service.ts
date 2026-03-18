@@ -33,11 +33,16 @@ export const CREDIT_PACKAGES = [
 ] as const
 
 // Service action credit costs (when using PLATFORM keys)
+// Keys must match adapter action names (snake_case)
 export const ACTION_COSTS: Record<string, Record<string, number>> = {
   apify: {
-    scrapeGoogleMaps: 5,   // ~100 leads
-    scrapeLinkedIn: 3,
-    scrapeInstagram: 2,
+    scrape_google_maps: 5,   // ~100 leads
+    scrape_linkedin: 3,
+    scrape_instagram: 2,
+    scrape_tiktok: 2,
+    scrape_website: 2,
+    enrich_contacts: 3,
+    send_instagram_dm: 5,
     default: 2,
   },
   brevo: {

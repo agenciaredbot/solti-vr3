@@ -68,7 +68,11 @@ export default async function ContactsPage() {
             {contacts.length === 0 && (
               <tr>
                 <td colSpan={6} className="p-8 text-center text-text-muted">
-                  No hay contactos aún. Ejecuta /prospect para generar leads.
+                  No hay contactos aun.{' '}
+                  <a href="/scraping" className="text-primary hover:underline">
+                    Busca prospectos
+                  </a>{' '}
+                  para generar leads.
                 </td>
               </tr>
             )}

@@ -10,6 +10,7 @@ const NAV_SECTIONS = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: '📊' },
       { href: '/contacts', label: 'Contactos', icon: '👥' },
+      { href: '/scraping', label: 'Prospeccion', icon: '🔍' },
       { href: '/campaigns', label: 'Campañas', icon: '📧' },
       { href: '/whatsapp', label: 'WhatsApp', icon: '💬' },
       { href: '/campaigns/whatsapp', label: 'Campanas WA', icon: '📣' },

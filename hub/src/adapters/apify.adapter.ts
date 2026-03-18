@@ -1,10 +1,20 @@
 /**
- * Apify Adapter — Scraping + Instagram DMs
+ * Apify Adapter — Scraping, Enrichment + Instagram DMs
  *
  * Gotchas:
  * - Actor IDs use `~` not `/` in URL paths (e.g. compass~crawler-google-places)
  * - Bearer token auth
  * - Runs are async — start returns runId, poll for completion
+ *
+ * Supported actions:
+ * - scrape_google_maps   — Google Places via compass~crawler-google-places
+ * - scrape_instagram     — IG profiles/hashtags via apify~instagram-scraper
+ * - scrape_linkedin      — LinkedIn search via anchor~linkedin-search
+ * - scrape_website       — Generic web scraping via apify~web-scraper
+ * - enrich_contacts      — Email/phone extraction via epctex~contact-info-scraper
+ * - send_instagram_dm    — Bulk IG DMs via mikolabs~instagram-bulk-dm
+ * - get_run_status       — Poll run progress
+ * - get_run_results      — Fetch dataset items
  */
 
 import type { ServiceAdapter, AdapterResult } from './adapter.interface.js'
@@ -29,6 +39,14 @@ export class ApifyAdapter implements ServiceAdapter {
         return this.scrapeInstagram(apiKey, params)
       case 'send_instagram_dm':
         return this.sendInstagramDm(apiKey, params)
+      case 'scrape_linkedin':
+        return this.scrapeLinkedIn(apiKey, params)
+      case 'scrape_tiktok':
+        return this.scrapeTikTok(apiKey, params)
+      case 'scrape_website':
+        return this.scrapeWebsite(apiKey, params)
+      case 'enrich_contacts':
+        return this.enrichContacts(apiKey, params)
       case 'get_run_status':
         return this.getRunStatus(apiKey, params)
       case 'get_run_results':
@@ -39,7 +57,10 @@ export class ApifyAdapter implements ServiceAdapter {
   }
 
   getActions(): string[] {
-    return ['scrape_google_maps', 'scrape_instagram', 'send_instagram_dm', 'get_run_status', 'get_run_results']
+    return [
+      'scrape_google_maps', 'scrape_instagram', 'scrape_linkedin', 'scrape_tiktok',
+      'scrape_website', 'enrich_contacts', 'send_instagram_dm', 'get_run_status', 'get_run_results',
+    ]
   }
 
   private async scrapeGoogleMaps(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
@@ -141,6 +162,172 @@ export class ApifyAdapter implements ServiceAdapter {
       data: { runId: data.data?.id },
       cost: 0.80,
       description: `Started Instagram DM to ${(params.usernames as string[])?.length || 0} users`,
+    }
+  }
+
+  private async scrapeLinkedIn(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
+    const actorId = 'anchor~linkedin-search'
+    const searchUrl = params.searchUrl as string
+    if (!searchUrl) throw new Error('searchUrl is required for LinkedIn scraping')
+
+    const maxResults = (params.maxResults || params.max || 100) as number
+
+    const input = {
+      searchUrl,
+      maxResults,
+    }
+
+    const res = await fetch(`${BASE_URL}/acts/${actorId}/runs`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Apify LinkedIn scrape failed: ${res.status} ${err.slice(0, 200)}`)
+    }
+
+    const data = await res.json() as any
+    return {
+      success: true,
+      data: {
+        runId: data.data?.id,
+        datasetId: data.data?.defaultDatasetId,
+        status: data.data?.status,
+      },
+      cost: 0.50,
+      description: `Started LinkedIn scrape (max ${maxResults} results)`,
+    }
+  }
+
+  private async scrapeTikTok(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
+    const actorId = 'clockworks~tiktok-scraper'
+    const query = (params.query || params.searchQuery) as string
+    if (!query) throw new Error('query is required for TikTok scraping')
+
+    const maxResults = (params.maxResults || params.max || 50) as number
+
+    const input = {
+      searchQueries: [query],
+      resultsPerPage: maxResults,
+    }
+
+    const res = await fetch(`${BASE_URL}/acts/${actorId}/runs`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Apify TikTok scrape failed: ${res.status} ${err.slice(0, 200)}`)
+    }
+
+    const data = await res.json() as any
+    return {
+      success: true,
+      data: {
+        runId: data.data?.id,
+        datasetId: data.data?.defaultDatasetId,
+        status: data.data?.status,
+      },
+      cost: 0.30,
+      description: `Started TikTok scrape: "${query}" (max ${maxResults})`,
+    }
+  }
+
+  private async scrapeWebsite(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
+    const actorId = 'apify~web-scraper'
+    const startUrls = (params.startUrls || params.urls) as string[]
+    if (!startUrls?.length) throw new Error('startUrls is required for website scraping')
+
+    const maxResults = (params.maxResults || params.max || 100) as number
+
+    const input = {
+      startUrls: startUrls.map(url => ({ url })),
+      maxPagesPerCrawl: maxResults,
+      pageFunction: `async function pageFunction(context) {
+        const { request, log, jQuery } = context;
+        const $ = jQuery;
+        const title = $('title').text().trim();
+        const emails = $('body').text().match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g) || [];
+        const phones = $('body').text().match(/[+]?[\\d\\s()-]{7,15}/g) || [];
+        return {
+          url: request.url,
+          title,
+          emails: [...new Set(emails)],
+          phones: [...new Set(phones.map(p => p.trim()))],
+        };
+      }`,
+    }
+
+    const res = await fetch(`${BASE_URL}/acts/${actorId}/runs`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Apify web scrape failed: ${res.status} ${err.slice(0, 200)}`)
+    }
+
+    const data = await res.json() as any
+    return {
+      success: true,
+      data: {
+        runId: data.data?.id,
+        datasetId: data.data?.defaultDatasetId,
+        status: data.data?.status,
+      },
+      cost: 0.20,
+      description: `Started website scrape on ${startUrls.length} URL(s)`,
+    }
+  }
+
+  private async enrichContacts(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
+    const actorId = 'epctex~contact-info-scraper'
+    const urls = params.urls as string[]
+    if (!urls?.length) throw new Error('urls is required for contact enrichment')
+
+    const input = {
+      startUrls: urls.map(url => ({ url })),
+    }
+
+    const res = await fetch(`${BASE_URL}/acts/${actorId}/runs`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Apify enrichment failed: ${res.status} ${err.slice(0, 200)}`)
+    }
+
+    const data = await res.json() as any
+    return {
+      success: true,
+      data: {
+        runId: data.data?.id,
+        datasetId: data.data?.defaultDatasetId,
+        status: data.data?.status,
+      },
+      cost: 0.40,
+      description: `Started contact enrichment for ${urls.length} URL(s)`,
     }
   }
 
