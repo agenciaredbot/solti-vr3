@@ -34,7 +34,7 @@ export async function startAutoReplyWorker(): Promise<void> {
     const { Worker } = await import('bullmq')
     const connection = { url: redisUrl }
 
-    new Worker('solti:whatsapp-autoreply', async (job) => {
+    new Worker('solti-whatsapp-autoreply', async (job) => {
       const data = job.data as AutoReplyJobData
       logger.info(
         { jobId: job.id, instanceId: data.instanceId, phone: data.contactPhone },

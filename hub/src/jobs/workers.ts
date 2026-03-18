@@ -30,7 +30,7 @@ export async function startWorkers(): Promise<void> {
     const connection = { url: redisUrl }
 
     // ═══ Campaign Worker ═══
-    new Worker('solti:campaigns', async (job) => {
+    new Worker('solti-campaigns', async (job) => {
       const data = job.data as CampaignJobData
       logger.info({ jobId: job.id, campaignId: data.campaignId, step: data.stepNumber }, 'Processing campaign step')
 
@@ -134,7 +134,7 @@ export async function startWorkers(): Promise<void> {
     }, { connection, concurrency: 5 })
 
     // ═══ Scrape Worker ═══
-    new Worker('solti:scraping', async (job) => {
+    new Worker('solti-scraping', async (job) => {
       const data = job.data as ScrapeJobData
       logger.info({ jobId: job.id, platform: data.platform }, 'Processing scrape job')
 
@@ -193,7 +193,7 @@ export async function startWorkers(): Promise<void> {
     }, { connection, concurrency: 3 })
 
     // ═══ Publish Worker ═══
-    new Worker('solti:publishing', async (job) => {
+    new Worker('solti-publishing', async (job) => {
       const data = job.data as PublishJobData
       logger.info({ jobId: job.id, platform: data.platform }, 'Processing publish job')
 

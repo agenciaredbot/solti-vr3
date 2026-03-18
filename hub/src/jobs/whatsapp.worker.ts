@@ -34,7 +34,7 @@ export async function startWhatsappWorker(): Promise<void> {
     const { Worker } = await import('bullmq')
     const connection = { url: redisUrl }
 
-    new Worker('solti:whatsapp-send', async (job) => {
+    new Worker('solti-whatsapp-send', async (job) => {
       const data = job.data as WhatsappSendJobData
       logger.info(
         { jobId: job.id, campaignId: data.campaignId, phone: data.phone, instance: data.instanceId },

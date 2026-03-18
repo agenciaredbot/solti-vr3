@@ -87,11 +87,11 @@ async function initQueues() {
     const { Queue } = await import('bullmq')
     const connection = { url: redisUrl }
 
-    _campaignQueue = new Queue('solti:campaigns', { connection })
-    _scrapeQueue = new Queue('solti:scraping', { connection })
-    _publishQueue = new Queue('solti:publishing', { connection })
-    _whatsappSendQueue = new Queue('solti:whatsapp-send', { connection })
-    _autoReplyQueue = new Queue('solti:whatsapp-autoreply', { connection })
+    _campaignQueue = new Queue('solti-campaigns', { connection })
+    _scrapeQueue = new Queue('solti-scraping', { connection })
+    _publishQueue = new Queue('solti-publishing', { connection })
+    _whatsappSendQueue = new Queue('solti-whatsapp-send', { connection })
+    _autoReplyQueue = new Queue('solti-whatsapp-autoreply', { connection })
 
     logger.info('BullMQ queues initialized')
   } catch (err) {
