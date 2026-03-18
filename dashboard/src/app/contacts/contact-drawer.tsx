@@ -60,7 +60,7 @@ export function ContactDrawer({ contactId, allTags, onClose, onUpdate }: Props) 
   }
 
   async function handleSave() {
-    if (!dirty) return
+    if (!dirty || !contactId) return
     setSaving(true)
     const fields: Record<string, any> = {}
     const editableKeys = [
