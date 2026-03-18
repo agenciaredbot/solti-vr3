@@ -39,7 +39,7 @@ export function Sidebar() {
   useEffect(() => {
     async function checkHub() {
       try {
-        const res = await fetch('/api/hub/analytics/dashboard')
+        const res = await fetch('/api/hub-health')
         setHubStatus(res.ok ? 'online' : 'offline')
       } catch {
         setHubStatus('offline')
