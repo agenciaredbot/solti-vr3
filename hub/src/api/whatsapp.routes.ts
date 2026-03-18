@@ -190,12 +190,12 @@ whatsapp.patch('/instances/:id', async (c) => {
   if (!instance) throw new NotFoundError('WhatsApp instance')
 
   const body = z.object({
-    systemPrompt: z.string().optional(),
-    additionalContext: z.string().optional(),
+    systemPrompt: z.string().nullable().optional(),
+    additionalContext: z.string().nullable().optional(),
     autoReply: z.boolean().optional(),
     maxHistoryMsgs: z.number().min(1).max(50).optional(),
     maxTokens: z.number().min(100).max(2000).optional(),
-    fallbackMsg: z.string().optional(),
+    fallbackMsg: z.string().nullable().optional(),
     cooldownSecs: z.number().min(10).max(600).optional(),
   }).parse(await c.req.json())
 
