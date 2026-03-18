@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
-import { hubClientFetch } from '@/lib/hub'
+import { createInstance, deleteInstance, getInstanceQR, getInstanceStatus } from './server-actions'
 
 // ═══ Top-level "Nueva Instancia" button + instance card actions ═══
 export function WhatsAppActions({
@@ -17,12 +17,10 @@ export function WhatsAppActions({
   instanceName?: string
   status?: string
 }) {
-  // If no instanceId → this is the top-level "create" button
   if (!instanceId) {
     return <CreateInstanceButton />
   }
 
-  // Otherwise → card-level actions
   return (
     <InstanceCardActions
       instanceId={instanceId}
@@ -45,16 +43,12 @@ function CreateInstanceButton() {
     if (!name.trim()) return
     setLoading(true)
     setError('')
-    try {
-      const res = await hubClientFetch('/whatsapp/instances', {
-        method: 'POST',
-        body: JSON.stringify({ name: name.trim() }),
-      })
-      setResult(res.data)
-    } catch (err: any) {
-      setError(err.message || 'Error al crear instancia')
-    } finally {
-      setLoading(false)
+    const res = await createInstance(name.trim())
+    setLoading(false)
+    if (res.error) {
+      setError(res.error)
+    } else {
+      setResult(res.data || res)
     }
   }
 
@@ -79,7 +73,7 @@ function CreateInstanceButton() {
               onChange={e => setName(e.target.value)}
             />
             <p className="text-xs text-text-muted">
-              Se creará como: <span className="font-mono text-text">solti-default-{name || '...'}</span>
+              Se creara como: <span className="font-mono text-text">solti-default-{name || '...'}</span>
             </p>
             {error && <p className="text-red-400 text-sm">{error}</p>}
             <div className="flex justify-end gap-2">
@@ -94,14 +88,14 @@ function CreateInstanceButton() {
             <div className="text-center">
               <p className="text-accent-green font-semibold mb-2">Instancia creada</p>
               <p className="text-sm text-text-muted mb-4">
-                Escanea el código QR con WhatsApp para vincular el número.
+                Escanea el codigo QR con WhatsApp para vincular el numero.
               </p>
             </div>
             {result.qrCode ? (
               <QRDisplay qrBase64={result.qrCode} />
             ) : (
               <p className="text-text-muted text-sm text-center">
-                QR no disponible. Usa el botón "QR" en la tarjeta de la instancia.
+                QR no disponible. Usa el boton "QR" en la tarjeta de la instancia.
               </p>
             )}
             <div className="flex justify-end">
@@ -134,33 +128,32 @@ function InstanceCardActions({
 
   const fetchQR = useCallback(async () => {
     setQrLoading(true)
-    try {
-      const res = await hubClientFetch(`/whatsapp/instances/${instanceId}/qr`)
-      setQrData(res.data?.qrCode || null)
-      if (res.data?.status) setStatusData(res.data.status)
-    } catch {
+    const res = await getInstanceQR(instanceId)
+    if (!res.error) {
+      const data = res.data || res
+      setQrData(data.qrCode || null)
+      if (data.status) setStatusData(data.status)
+    } else {
       setQrData(null)
-    } finally {
-      setQrLoading(false)
     }
+    setQrLoading(false)
   }, [instanceId])
 
   async function checkStatus() {
-    try {
-      const res = await hubClientFetch(`/whatsapp/instances/${instanceId}/status`)
-      setStatusData(res.data?.status || status)
+    const res = await getInstanceStatus(instanceId)
+    if (!res.error) {
+      const data = res.data || res
+      setStatusData(data.status || status)
       router.refresh()
-    } catch { /* ignore */ }
+    }
   }
 
   async function handleDelete() {
     setDeleting(true)
-    try {
-      await hubClientFetch(`/whatsapp/instances/${instanceId}`, { method: 'DELETE' })
-      setDeleteOpen(false)
-      router.refresh()
-    } catch { /* ignore */ }
+    await deleteInstance(instanceId)
+    setDeleteOpen(false)
     setDeleting(false)
+    router.refresh()
   }
 
   return (
@@ -181,7 +174,7 @@ function InstanceCardActions({
       <Modal open={qrOpen} onClose={() => setQrOpen(false)} title={`QR — ${instanceName}`}>
         <div className="space-y-4">
           <p className="text-sm text-text-muted text-center">
-            Escanea con WhatsApp para vincular este número.
+            Escanea con WhatsApp para vincular este numero.
           </p>
           {qrLoading ? (
             <div className="flex justify-center py-8">
@@ -207,15 +200,15 @@ function InstanceCardActions({
       <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Eliminar Instancia">
         <div className="space-y-4">
           <p className="text-sm">
-            ¿Estás seguro de eliminar <span className="font-semibold text-red-400">{instanceName}</span>?
+            ¿Estas seguro de eliminar <span className="font-semibold text-red-400">{instanceName}</span>?
           </p>
           <p className="text-xs text-text-muted">
-            Se eliminará la instancia de Evolution API y se desconectará el número de WhatsApp. Esta acción no se puede deshacer.
+            Se eliminara la instancia de Evolution API y se desconectara el numero de WhatsApp.
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
             <Button variant="danger" onClick={handleDelete} loading={deleting}>
-              Sí, eliminar
+              Si, eliminar
             </Button>
           </div>
         </div>
@@ -228,13 +221,6 @@ function InstanceCardActions({
 function QRDisplay({ qrBase64 }: { qrBase64: string }) {
   const src = qrBase64.startsWith('data:') ? qrBase64 : `data:image/png;base64,${qrBase64}`
 
-  // Auto-refresh every 20s while QR is visible
-  const [refreshCount, setRefreshCount] = useState(0)
-  useEffect(() => {
-    const timer = setInterval(() => setRefreshCount(c => c + 1), 20_000)
-    return () => clearInterval(timer)
-  }, [])
-
   return (
     <div className="flex justify-center">
       <div className="bg-white p-4 rounded-xl">
@@ -242,7 +228,6 @@ function QRDisplay({ qrBase64 }: { qrBase64: string }) {
           src={src}
           alt="WhatsApp QR Code"
           className="w-64 h-64"
-          key={refreshCount}
         />
       </div>
     </div>

@@ -28,3 +28,30 @@ export async function getInstanceStatus(id: string) {
     return { error: e.message }
   }
 }
+
+export async function createInstance(name: string) {
+  try {
+    return await hubFetch('/whatsapp/instances', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    })
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
+export async function deleteInstance(id: string) {
+  try {
+    return await hubFetch(`/whatsapp/instances/${id}`, { method: 'DELETE' })
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
+export async function getInstanceQR(id: string) {
+  try {
+    return await hubFetch(`/whatsapp/instances/${id}/qr`)
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
