@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 const NAV_SECTIONS = [
   {
@@ -35,7 +36,10 @@ const NAV_SECTIONS = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [hubStatus, setHubStatus] = useState<'online' | 'offline' | 'checking'>('checking')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   useEffect(() => {
     async function checkHub() {
@@ -50,6 +54,22 @@ export function Sidebar() {
     const interval = setInterval(checkHub, 30_000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    async function getUser() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setUserEmail(user?.email ?? null)
+    }
+    getUser()
+  }, [])
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <aside className="w-64 bg-surface-light border-r border-border min-h-screen flex flex-col shrink-0">
@@ -94,8 +114,28 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-border space-y-2">
+      {/* User + Logout */}
+      <div className="p-4 border-t border-border space-y-3">
+        {userEmail && (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold shrink-0">
+              {userEmail[0].toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-text truncate">{userEmail}</p>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-text-muted hover:text-red-400 hover:bg-red-400/10 transition-all disabled:opacity-50"
+        >
+          <span>{loggingOut ? '⏳' : '🚪'}</span>
+          {loggingOut ? 'Cerrando sesion...' : 'Cerrar sesion'}
+        </button>
+
         <div className="flex items-center gap-2 text-xs text-text-muted">
           <span>Hub:</span>
           {hubStatus === 'checking' && <span className="text-accent-yellow">● Verificando...</span>}
