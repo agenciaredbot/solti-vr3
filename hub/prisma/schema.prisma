@@ -484,12 +484,13 @@ model WhatsappInstance {
   instanceId    String    @unique @map("instance_id") // Evolution API instance ID
   phoneNumber   String?   @map("phone_number")
   status        String    @default("DISCONNECTED") // DISCONNECTED, CONNECTING, CONNECTED, BANNED
-  systemPrompt    String?   @map("system_prompt")
-  autoReply       Boolean   @default(false) @map("auto_reply")
-  maxHistoryMsgs  Int       @default(10) @map("max_history_msgs")
-  maxTokens       Int       @default(300) @map("max_tokens")
-  fallbackMsg     String?   @map("fallback_msg")
-  cooldownSecs    Int       @default(60) @map("cooldown_secs")
+  systemPrompt      String?   @map("system_prompt")       // Main agent context (MD content)
+  additionalContext String?   @map("additional_context")  // Extra info: links, numbers, notes
+  autoReply         Boolean   @default(false) @map("auto_reply")
+  maxHistoryMsgs    Int       @default(10) @map("max_history_msgs")
+  maxTokens         Int       @default(500) @map("max_tokens")
+  fallbackMsg       String?   @map("fallback_msg")
+  cooldownSecs      Int       @default(60) @map("cooldown_secs")
   webhookUrl      String?   @map("webhook_url")
   qrCode          String?   @map("qr_code")
   qrExpiresAt     DateTime? @map("qr_expires_at") @db.Timestamptz

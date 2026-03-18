@@ -49,6 +49,7 @@ export async function startAutoReplyWorker(): Promise<void> {
           instanceName: true,
           autoReply: true,
           systemPrompt: true,
+          additionalContext: true,
           maxHistoryMsgs: true,
           maxTokens: true,
           fallbackMsg: true,
@@ -104,10 +105,14 @@ export async function startAutoReplyWorker(): Promise<void> {
       let replyText: string
 
       try {
+        let fullPrompt = instance.systemPrompt || getDefaultSystemPrompt()
+        if (instance.additionalContext) {
+          fullPrompt += '\n\n--- INFORMACION ADICIONAL ---\n' + instance.additionalContext
+        }
         replyText = await generateReply(
-          instance.systemPrompt || getDefaultSystemPrompt(),
+          fullPrompt,
           history,
-          instance.maxTokens || 300,
+          instance.maxTokens || 500,
           instance.tenantId
         )
       } catch (err) {

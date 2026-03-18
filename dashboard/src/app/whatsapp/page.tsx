@@ -1,5 +1,7 @@
+import Link from 'next/link'
 import { hubFetch } from '@/lib/hub'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { WhatsAppActions } from './actions'
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
@@ -84,8 +86,16 @@ function InstanceCard({ instance }: { instance: any }) {
       </div>
 
       <div className="flex gap-2 mt-auto pt-2 border-t border-border/50">
+        <Link href={`/whatsapp/${instance.id}`}>
+          <Button size="sm" variant="secondary">Configurar</Button>
+        </Link>
         <WhatsAppActions instanceId={instance.id} instanceName={instance.instanceName} status={instance.status} />
       </div>
+      {instance.autoReply && (
+        <div className="flex items-center gap-1.5 text-[10px] text-accent-green">
+          <span>●</span> Agente activo
+        </div>
+      )}
     </div>
   )
 }

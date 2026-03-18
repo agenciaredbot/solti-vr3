@@ -108,6 +108,33 @@ whatsapp.get('/instances/:id', async (c) => {
   return c.json({ data: instance })
 })
 
+// ═══ PATCH /instances/:id — Update instance config ═══
+whatsapp.patch('/instances/:id', async (c) => {
+  const { tenantId } = getTenant(c)
+  const id = c.req.param('id')
+
+  const instance = await prisma.whatsappInstance.findFirst({ where: { id, tenantId } })
+  if (!instance) throw new NotFoundError('WhatsApp instance')
+
+  const body = z.object({
+    systemPrompt: z.string().optional(),
+    additionalContext: z.string().optional(),
+    autoReply: z.boolean().optional(),
+    maxHistoryMsgs: z.number().min(1).max(50).optional(),
+    maxTokens: z.number().min(100).max(2000).optional(),
+    fallbackMsg: z.string().optional(),
+    cooldownSecs: z.number().min(10).max(600).optional(),
+  }).parse(await c.req.json())
+
+  const updated = await prisma.whatsappInstance.update({
+    where: { id },
+    data: body,
+  })
+
+  logger.info({ tenantId, instanceId: id }, 'WhatsApp instance config updated')
+  return c.json({ data: updated })
+})
+
 // ═══ DELETE /instances/:id — Delete instance ═══
 whatsapp.delete('/instances/:id', async (c) => {
   const { tenantId } = getTenant(c)
