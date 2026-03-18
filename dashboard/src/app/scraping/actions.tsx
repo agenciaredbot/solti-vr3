@@ -478,7 +478,7 @@ export function ScrapingActions() {
               <Button
                 onClick={handleStart}
                 loading={loading}
-                disabled={!costEstimate?.hasBalance}
+                disabled={costEstimate !== null && !costEstimate.hasBalance}
               >
                 Iniciar Busqueda
               </Button>
