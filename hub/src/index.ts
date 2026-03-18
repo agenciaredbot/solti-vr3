@@ -84,10 +84,9 @@ app.onError((err, c) => {
     return c.json({ error: err.message, code: err.code }, err.statusCode as any)
   }
 
-  logger.error({ err }, 'Unhandled error')
-  const isDev = process.env.NODE_ENV !== 'production'
+  logger.error({ err, stack: err.stack }, 'Unhandled error')
   return c.json(
-    { error: isDev ? err.message : 'Internal server error', code: 'INTERNAL_ERROR', ...(isDev && { detail: String(err) }) },
+    { error: err.message, code: 'INTERNAL_ERROR', stack: err.stack?.split('\n').slice(0, 5) },
     500
   )
 })
