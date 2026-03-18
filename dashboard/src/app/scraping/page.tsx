@@ -40,7 +40,7 @@ export default async function ScrapingPage() {
 
   const jobs = jobsRes.data || []
   const totalJobs = jobsRes.pagination?.total || 0
-  const balance = balanceRes.data || { available: 0, usedCredits: 0 }
+  const balance = balanceRes.data || balanceRes || { available: 0, usedCredits: 0 }
 
   const completedJobs = jobs.filter((j: any) => j.status === 'COMPLETED').length
   const activeJobs = jobs.filter((j: any) => j.status === 'RUNNING' || j.status === 'PENDING').length
