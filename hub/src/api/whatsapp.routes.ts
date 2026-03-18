@@ -147,25 +147,33 @@ whatsapp.post('/instances/sync', async (c) => {
     }
   }
 
-  // Also update status of existing instances
+  // Update status of existing instances + remove orphans (in DB but not in Evolution)
+  const stateMap: Record<string, string> = { open: 'CONNECTED', close: 'DISCONNECTED', connecting: 'CONNECTING' }
   const dbInstances = await prisma.whatsappInstance.findMany({ where: { tenantId } })
+  let removed = 0
   for (const db of dbInstances) {
     const evo = evoInstances.find((i: any) => i.name === db.instanceName)
     if (evo) {
-      const stateMap: Record<string, string> = { open: 'CONNECTED', close: 'DISCONNECTED', connecting: 'CONNECTING' }
+      // Update status from Evolution
       await prisma.whatsappInstance.update({
         where: { id: db.id },
         data: {
           status: stateMap[evo.connectionStatus] || db.status,
           phoneNumber: evo.ownerJid?.split('@')[0] || db.phoneNumber,
+          connectedAt: evo.connectionStatus === 'open' && db.status !== 'CONNECTED' ? new Date() : db.connectedAt,
         },
       })
+    } else {
+      // Orphan: exists in DB but not in Evolution — remove it
+      await prisma.whatsappInstance.delete({ where: { id: db.id } })
+      removed++
+      logger.info({ tenantId, instanceName: db.instanceName }, 'Removed orphan WhatsApp instance from DB')
     }
   }
 
   const all = await prisma.whatsappInstance.findMany({ where: { tenantId }, orderBy: { createdAt: 'desc' } })
-  logger.info({ tenantId, imported, total: all.length }, 'WhatsApp instances synced')
-  return c.json({ data: all, imported })
+  logger.info({ tenantId, imported, removed, total: all.length }, 'WhatsApp instances synced')
+  return c.json({ data: all, imported, removed })
 })
 
 // ═══ GET /instances/:id — Get instance ═══
