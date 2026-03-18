@@ -33,6 +33,11 @@ export class EvolutionAdapter implements ServiceAdapter {
     return res.ok
   }
 
+  /** Normalize: routes send instanceName, some callers send instance */
+  private inst(params: Record<string, unknown>): string {
+    return (params.instanceName || params.instance || params.name) as string
+  }
+
   async execute(apiKey: string, action: string, params: Record<string, unknown>): Promise<AdapterResult> {
     switch (action) {
       case 'send_text':
@@ -65,7 +70,7 @@ export class EvolutionAdapter implements ServiceAdapter {
 
   private async sendText(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
     const baseUrl = this.getBaseUrl()
-    const instance = params.instance as string
+    const instance = this.inst(params)
     const body = { number: params.number as string, text: params.text as string }
 
     const res = await fetch(`${baseUrl}/message/sendText/${instance}`, {
@@ -90,7 +95,7 @@ export class EvolutionAdapter implements ServiceAdapter {
 
   private async sendMedia(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
     const baseUrl = this.getBaseUrl()
-    const instance = params.instance as string
+    const instance = this.inst(params)
     const mediaType = params.mediaType as string // image, video, document, audio
     const body: Record<string, unknown> = {
       number: params.number as string,
@@ -123,7 +128,7 @@ export class EvolutionAdapter implements ServiceAdapter {
   private async createInstance(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
     const baseUrl = this.getBaseUrl()
     const body: Record<string, unknown> = {
-      instanceName: (params.instanceName || params.name) as string,
+      instanceName: this.inst(params),
       integration: 'WHATSAPP-BAILEYS',
       qrcode: true,
     }
@@ -176,7 +181,7 @@ export class EvolutionAdapter implements ServiceAdapter {
 
   private async connectionState(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
     const baseUrl = this.getBaseUrl()
-    const instance = params.instance as string
+    const instance = this.inst(params)
 
     const res = await fetch(`${baseUrl}/instance/connectionState/${instance}`, {
       headers: { apikey: apiKey },
@@ -198,7 +203,7 @@ export class EvolutionAdapter implements ServiceAdapter {
 
   private async getQr(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
     const baseUrl = this.getBaseUrl()
-    const instance = params.instance as string
+    const instance = this.inst(params)
 
     const res = await fetch(`${baseUrl}/instance/connect/${instance}`, {
       headers: { apikey: apiKey },
@@ -217,7 +222,7 @@ export class EvolutionAdapter implements ServiceAdapter {
 
   private async findMessages(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
     const baseUrl = this.getBaseUrl()
-    const instance = params.instance as string
+    const instance = this.inst(params)
 
     // POST with JSON body (NOT GET)
     const body: Record<string, unknown> = { limit: (params.limit as number) || 20 }
@@ -265,7 +270,7 @@ export class EvolutionAdapter implements ServiceAdapter {
 
   private async deleteInstance(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
     const baseUrl = this.getBaseUrl()
-    const instance = params.instance as string
+    const instance = this.inst(params)
 
     const res = await fetch(`${baseUrl}/instance/delete/${instance}`, {
       method: 'DELETE',
@@ -284,7 +289,7 @@ export class EvolutionAdapter implements ServiceAdapter {
 
   private async setSettings(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
     const baseUrl = this.getBaseUrl()
-    const instance = params.instance as string
+    const instance = this.inst(params)
     const { instance: _, ...settings } = params
 
     // POST /settings/set/{instance} (NOT PUT /instance/settings/)
