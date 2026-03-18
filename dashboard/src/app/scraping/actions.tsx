@@ -6,7 +6,16 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
-import { hubClientFetch } from '@/lib/hub'
+import {
+  scrapingCostEstimate,
+  scrapingStart,
+  scrapingJobStatus,
+  scrapingJobResults,
+  scrapingImport,
+  scrapingEnrich,
+  scrapingEnrichResults,
+  fetchContacts,
+} from './server-actions'
 
 type Platform = 'google_maps' | 'instagram' | 'linkedin' | 'tiktok' | 'website'
 type Phase = 'form' | 'running' | 'results' | 'imported'
@@ -126,14 +135,9 @@ export function ScrapingActions() {
   // ═══ Cost estimate ═══
   const fetchCostEstimate = useCallback(async () => {
     try {
-      const res = await hubClientFetch('/scraping/cost-estimate', {
-        method: 'POST',
-        body: JSON.stringify({
-          platform,
-          maxResults: formData.maxResults || formData.max || 100,
-        }),
-      })
-      setCostEstimate(res.data)
+      const res = await scrapingCostEstimate(platform, Number(formData.maxResults || formData.max || 100))
+      if (res.error) { setCostEstimate(null); return }
+      setCostEstimate(res.data || res)
     } catch {
       setCostEstimate(null)
     }
@@ -169,12 +173,10 @@ export function ScrapingActions() {
         body = { ...body, startUrls: urls, maxResults: Number(formData.maxResults) }
       }
 
-      const res = await hubClientFetch('/scraping/start', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      })
+      const res = await scrapingStart(body)
+      if (res.error) throw new Error(res.error)
 
-      setJobId(res.data.jobId)
+      setJobId((res.data || res).jobId)
       setStartTime(Date.now())
       setPhase('running')
     } catch (err: any) {
@@ -190,25 +192,29 @@ export function ScrapingActions() {
 
     const pollInterval = setInterval(async () => {
       try {
-        const res = await hubClientFetch(`/scraping/jobs/${jobId}/status`)
-        setJobStatus(res.data)
+        const res = await scrapingJobStatus(jobId)
+        if (res.error) return
+        const status = res.data || res
+        setJobStatus(status)
         setElapsed(Math.round((Date.now() - startTime) / 1000))
 
-        if (res.data.status === 'COMPLETED') {
+        if (status.status === 'COMPLETED') {
           clearInterval(pollInterval)
           // Fetch results
-          const resultsRes = await hubClientFetch(`/scraping/jobs/${jobId}/results`)
-          setResults(resultsRes.data || [])
+          const resultsRes = await scrapingJobResults(jobId)
+          const resultsData = resultsRes.data || resultsRes
+          setResults(Array.isArray(resultsData) ? resultsData : [])
           setDuplicateCount(resultsRes.duplicateCount || 0)
           // Select all non-duplicate by default
+          const items = Array.isArray(resultsData) ? resultsData : []
           const nonDupeIds = new Set<string>(
-            (resultsRes.data || [])
+            items
               .filter((r: NormalizedResult) => !r.processed && !r.duplicate)
               .map((r: NormalizedResult) => r.id)
           )
           setSelected(nonDupeIds)
           setPhase('results')
-        } else if (res.data.status === 'FAILED') {
+        } else if (status.status === 'FAILED') {
           clearInterval(pollInterval)
         }
       } catch {
@@ -234,14 +240,12 @@ export function ScrapingActions() {
     setLoading(true)
     setError('')
     try {
-      const res = await hubClientFetch(`/scraping/jobs/${jobId}/import`, {
-        method: 'POST',
-        body: JSON.stringify({
-          resultIds: Array.from(selected),
-          mode: importMode,
-        }),
+      const res = await scrapingImport(jobId!, {
+        resultIds: Array.from(selected),
+        mode: importMode,
       })
-      setImportSummary(res.data)
+      if (res.error) throw new Error(res.error)
+      setImportSummary(res.data || res)
       setPhase('imported')
       router.refresh()
     } catch (err: any) {
@@ -286,7 +290,8 @@ export function ScrapingActions() {
     setEnrichResult(null)
     setEnrichLoading(true)
     try {
-      const res = await hubClientFetch('/contacts?limit=50&sortBy=createdAt&sortDir=desc')
+      const res = await fetchContacts(50)
+      if (res.error) { setEnrichContacts([]); setEnrichLoading(false); return }
       const contacts = (res.data || []).filter((c: any) => c.website && (!c.email || !c.phone))
       setEnrichContacts(contacts)
     } catch {
@@ -299,11 +304,9 @@ export function ScrapingActions() {
     if (enrichSelected.size === 0) return
     setEnrichLoading(true)
     try {
-      const res = await hubClientFetch('/scraping/enrich', {
-        method: 'POST',
-        body: JSON.stringify({ contactIds: Array.from(enrichSelected) }),
-      })
-      setEnrichJobId(res.data.jobId)
+      const res = await scrapingEnrich({ contactIds: Array.from(enrichSelected) })
+      if (res.error) throw new Error(res.error)
+      setEnrichJobId((res.data || res).jobId)
       setEnrichPhase('running')
     } catch (err: any) {
       setError(err.message || 'Error al iniciar enriquecimiento')
@@ -316,13 +319,15 @@ export function ScrapingActions() {
     if (enrichPhase !== 'running' || !enrichJobId) return
     const interval = setInterval(async () => {
       try {
-        const res = await hubClientFetch(`/scraping/enrich/${enrichJobId}/results`)
-        if (res.data?.status === 'COMPLETED') {
+        const res = await scrapingEnrichResults(enrichJobId)
+        if (res.error) return
+        const data = res.data || res
+        if (data.status === 'COMPLETED') {
           clearInterval(interval)
-          setEnrichResult(res.data)
+          setEnrichResult(data)
           setEnrichPhase('done')
           router.refresh()
-        } else if (res.data?.status === 'FAILED') {
+        } else if (data.status === 'FAILED') {
           clearInterval(interval)
           setEnrichPhase('done')
         }
