@@ -7,20 +7,19 @@
  */
 
 import type { Context, Next } from 'hono'
-import { jwtVerify } from 'jose'
+import { jwtVerify, createRemoteJWKSet } from 'jose'
 import { prisma } from '../lib/prisma.js'
 import { AuthError } from '../lib/errors.js'
 import { logger } from '../lib/logger.js'
 
-// Supabase JWT secret for signature verification
-// Get this from Supabase Dashboard > Settings > API > JWT Secret
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET
-const JWT_SECRET = SUPABASE_JWT_SECRET
-  ? new TextEncoder().encode(SUPABASE_JWT_SECRET)
+// Supabase JWKS endpoint for ECC (P-256) JWT signature verification
+const SUPABASE_URL = process.env.SUPABASE_URL || ''
+const JWKS = SUPABASE_URL
+  ? createRemoteJWKSet(new URL(`${SUPABASE_URL}/auth/v1/jwks`))
   : null
 
-if (!JWT_SECRET) {
-  logger.warn('SUPABASE_JWT_SECRET not set — JWT verification will use Supabase API fallback (slower)')
+if (!JWKS) {
+  logger.warn('SUPABASE_URL not set — JWT verification will use Supabase API fallback (slower)')
 }
 
 export interface TenantContext {
@@ -81,25 +80,24 @@ async function resolveFromApiKey(apiKey: string): Promise<TenantContext | null> 
 
 /**
  * Resolve tenant from Supabase JWT.
- * VERIFIES signature before trusting payload, then looks up tenant_members.
+ * VERIFIES signature via JWKS before trusting payload, then looks up tenant_members.
  */
 async function resolveFromJwt(token: string): Promise<TenantContext | null> {
   try {
     let userId: string | undefined
 
-    if (JWT_SECRET) {
-      // Fast path: verify JWT signature locally
-      const { payload } = await jwtVerify(token, JWT_SECRET, {
-        issuer: 'supabase',
+    if (JWKS) {
+      // Fast path: verify JWT signature via Supabase JWKS (ECC P-256)
+      const { payload } = await jwtVerify(token, JWKS, {
+        issuer: `${SUPABASE_URL}/auth/v1`,
       })
       userId = payload.sub as string | undefined
     } else {
       // Fallback: verify token via Supabase API (slower but secure)
-      const supabaseUrl = process.env.SUPABASE_URL
       const serviceKey = process.env.SUPABASE_SERVICE_KEY
-      if (!supabaseUrl || !serviceKey) return null
+      if (!SUPABASE_URL || !serviceKey) return null
 
-      const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'apikey': serviceKey,
@@ -126,7 +124,8 @@ async function resolveFromJwt(token: string): Promise<TenantContext | null> {
       userId,
       role: member.role,
     }
-  } catch {
+  } catch (err) {
+    logger.debug({ err }, 'JWT verification failed')
     return null
   }
 }
