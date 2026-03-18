@@ -58,6 +58,8 @@ export class EvolutionAdapter implements ServiceAdapter {
         return this.deleteInstance(apiKey, params)
       case 'set_settings':
         return this.setSettings(apiKey, params)
+      case 'set_webhook':
+        return this.setWebhook(apiKey, params)
       default:
         throw new Error(`Unknown Evolution action: ${action}`)
     }
@@ -65,7 +67,7 @@ export class EvolutionAdapter implements ServiceAdapter {
 
   getActions(): string[] {
     return ['send_text', 'send_media', 'create_instance', 'connection_state', 'get_qr',
-            'find_messages', 'list_instances', 'delete_instance', 'set_settings']
+            'find_messages', 'list_instances', 'delete_instance', 'set_settings', 'set_webhook']
   }
 
   private async sendText(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
@@ -307,6 +309,41 @@ export class EvolutionAdapter implements ServiceAdapter {
       data,
       cost: 0,
       description: `Settings updated for ${instance}`,
+    }
+  }
+
+  private async setWebhook(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
+    const baseUrl = this.getBaseUrl()
+    const instance = this.inst(params)
+    const url = params.webhookUrl as string
+
+    const res = await fetch(`${baseUrl}/webhook/set/${instance}`, {
+      method: 'POST',
+      headers: { apikey: apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        webhook: {
+          enabled: true,
+          url,
+          webhookByEvents: false,
+          webhookBase64: false,
+          events: [
+            'MESSAGES_UPSERT',
+            'MESSAGES_UPDATE',
+            'CONNECTION_UPDATE',
+            'QRCODE_UPDATED',
+          ],
+        },
+      }),
+    })
+
+    if (!res.ok) throw new Error(`Evolution webhook set failed: ${res.status}`)
+
+    const data = await res.json()
+    return {
+      success: true,
+      data,
+      cost: 0,
+      description: `Webhook configured for ${instance}`,
     }
   }
 }

@@ -102,6 +102,20 @@ whatsapp.post('/instances', async (c) => {
     },
   }).catch(err => logger.warn({ err, instanceName }, 'Failed to set instance settings'))
 
+  // Configure webhook so Evolution sends events to our Hub
+  const hubUrl = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : 'https://solti-vr3-production.up.railway.app'
+  await routeService({
+    tenantId,
+    service: 'evolution',
+    action: 'set_webhook',
+    params: {
+      instanceName,
+      webhookUrl: `${hubUrl}/webhooks/evolution`,
+    },
+  }).catch(err => logger.warn({ err, instanceName }, 'Failed to set instance webhook'))
+
   logger.info({ tenantId, instanceName, instanceId: instance.id }, 'WhatsApp instance created')
   return c.json({ data: { ...instance, qrCode: evoData.qrcode?.base64 } }, 201)
 })
