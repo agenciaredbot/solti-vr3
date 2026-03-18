@@ -42,8 +42,9 @@ whatsapp.post('/instances', async (c) => {
     webhookUrl: z.string().url().optional(),
   }).parse(await c.req.json())
 
-  // Instance name: solti-{slug}-{name}
-  const instanceName = `solti-${tenantSlug}-${name}`
+  // Instance name: solti-{slug}-{name} (sanitized, no spaces)
+  const safeName = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  const instanceName = `solti-${tenantSlug}-${safeName}`
 
   // Create in Evolution API
   const result = await routeService({

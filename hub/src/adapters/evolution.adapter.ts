@@ -123,7 +123,7 @@ export class EvolutionAdapter implements ServiceAdapter {
   private async createInstance(apiKey: string, params: Record<string, unknown>): Promise<AdapterResult> {
     const baseUrl = this.getBaseUrl()
     const body: Record<string, unknown> = {
-      instanceName: params.name as string,
+      instanceName: (params.instanceName || params.name) as string,
       integration: 'WHATSAPP-BAILEYS',
       qrcode: true,
     }
