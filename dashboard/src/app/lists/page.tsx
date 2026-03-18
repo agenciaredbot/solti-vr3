@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { hubFetch } from '@/lib/hub'
 import { Badge } from '@/components/ui/badge'
 import { ListActions } from './actions'
@@ -44,7 +45,7 @@ export default async function ListsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {lists.map((list: any) => (
-            <div key={list.id} className="bg-surface-light border border-border rounded-xl p-6 hover:border-primary/30 transition-colors">
+            <Link key={list.id} href={`/lists/${list.id}`} className="bg-surface-light border border-border rounded-xl p-6 hover:border-primary/30 transition-colors block">
               <div className="flex items-start justify-between mb-3">
                 <h3 className="font-semibold text-lg">{list.name}</h3>
                 <Badge variant="info">{list._count?.members ?? 0} contactos</Badge>
@@ -56,7 +57,7 @@ export default async function ListsPage() {
                 <span>Creada: {new Date(list.createdAt).toLocaleDateString('es-CO')}</span>
                 {list.isDynamic && <Badge variant="warning">Dinámica</Badge>}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

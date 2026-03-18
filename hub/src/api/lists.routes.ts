@@ -72,7 +72,9 @@ lists.get('/:id', async (c) => {
       members: {
         include: {
           contact: {
-            select: { id: true, firstName: true, lastName: true, email: true, phone: true, score: true, status: true },
+            select: { id: true, firstName: true, lastName: true, email: true, phone: true, whatsapp: true, instagram: true, linkedin: true, website: true, city: true, country: true, company: true, industry: true, score: true, status: true, source: true,
+              contactTags: { include: { tag: true } },
+            },
           },
         },
       },

@@ -122,6 +122,46 @@ export async function createListWithContacts(name: string, description: string |
   }
 }
 
+export async function getList(listId: string) {
+  try {
+    return await hubFetch(`/lists/${listId}`)
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
+export async function updateList(listId: string, data: Record<string, any>) {
+  try {
+    return await hubFetch(`/lists/${listId}`, { method: 'PATCH', body: JSON.stringify(data) })
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
+export async function deleteList(listId: string) {
+  try {
+    return await hubFetch(`/lists/${listId}`, { method: 'DELETE' })
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
+export async function removeContactFromList(listId: string, contactId: string) {
+  try {
+    return await hubFetch(`/lists/${listId}/members/${contactId}`, { method: 'DELETE' })
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
+export async function repopulateList(listId: string, filters: Record<string, any>) {
+  try {
+    return await hubFetch(`/lists/${listId}/populate`, { method: 'POST', body: JSON.stringify(filters) })
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
 export async function createSmartList(name: string, description: string | undefined, filters: Record<string, any>) {
   try {
     const listRes = await hubFetch('/lists', {
