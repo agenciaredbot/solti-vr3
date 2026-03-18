@@ -176,11 +176,22 @@ lists.post('/:id/populate', async (c) => {
     minScore: z.number().optional(),
     maxScore: z.number().optional(),
     status: z.string().optional(),
+    statuses: z.array(z.string()).optional(),
     source: z.string().optional(),
     city: z.string().optional(),
+    country: z.string().optional(),
+    industry: z.string().optional(),
+    company: z.string().optional(),
+    search: z.string().optional(),
+    tagIds: z.array(z.string()).optional(),
+    tagNames: z.array(z.string()).optional(),
     hasEmail: z.boolean().optional(),
     hasPhone: z.boolean().optional(),
-    limit: z.number().max(500).default(100),
+    hasWhatsapp: z.boolean().optional(),
+    hasInstagram: z.boolean().optional(),
+    hasLinkedin: z.boolean().optional(),
+    hasWebsite: z.boolean().optional(),
+    limit: z.number().max(500).default(200),
   }).parse(await c.req.json())
 
   const list = await prisma.contactList.findFirst({ where: { id: listId, tenantId } })
@@ -191,10 +202,37 @@ lists.post('/:id/populate', async (c) => {
   if (body.minScore !== undefined) where.score = { ...where.score, gte: body.minScore }
   if (body.maxScore !== undefined) where.score = { ...where.score, lte: body.maxScore }
   if (body.status) where.status = body.status
+  if (body.statuses?.length) where.status = { in: body.statuses }
   if (body.source) where.source = body.source
   if (body.city) where.city = { contains: body.city, mode: 'insensitive' }
+  if (body.country) where.country = { contains: body.country, mode: 'insensitive' }
+  if (body.industry) where.industry = { contains: body.industry, mode: 'insensitive' }
+  if (body.company) where.company = { contains: body.company, mode: 'insensitive' }
+  if (body.search) {
+    where.OR = [
+      { firstName: { contains: body.search, mode: 'insensitive' } },
+      { lastName: { contains: body.search, mode: 'insensitive' } },
+      { email: { contains: body.search, mode: 'insensitive' } },
+      { company: { contains: body.search, mode: 'insensitive' } },
+    ]
+  }
   if (body.hasEmail) where.email = { not: null }
-  if (body.hasPhone) where.OR = [{ phone: { not: null } }, { whatsapp: { not: null } }]
+  if (body.hasPhone) where.AND = [...(where.AND || []), { OR: [{ phone: { not: null } }, { whatsapp: { not: null } }] }]
+  if (body.hasWhatsapp) where.whatsapp = { not: null }
+  if (body.hasInstagram) where.instagram = { not: null }
+  if (body.hasLinkedin) where.linkedin = { not: null }
+  if (body.hasWebsite) where.website = { not: null }
+  // Tag filtering: contacts must have ALL specified tags
+  if (body.tagIds?.length) {
+    where.AND = [...(where.AND || []), ...body.tagIds.map((tagId: string) => ({
+      contactTags: { some: { tagId } },
+    }))]
+  }
+  if (body.tagNames?.length) {
+    where.AND = [...(where.AND || []), ...body.tagNames.map((name: string) => ({
+      contactTags: { some: { tag: { name, tenantId } } },
+    }))]
+  }
 
   const contacts = await prisma.contact.findMany({
     where,
