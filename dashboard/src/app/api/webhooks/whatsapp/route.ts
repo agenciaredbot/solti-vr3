@@ -364,13 +364,29 @@ async function handleConnectionUpdate(instanceName: string, data: any) {
   }
   const status = statusMap[state] || 'DISCONNECTED'
 
+  // On first connection, auto-enable autoReply with default prompt
+  const updateData: Record<string, unknown> = {
+    status,
+    ...(status === 'CONNECTED' ? { connectedAt: new Date() } : {}),
+    ...(status === 'DISCONNECTED' ? { disconnectedAt: new Date() } : {}),
+  }
+
+  if (status === 'CONNECTED') {
+    // Check if instance has no prompt yet (first connection)
+    const inst = await prisma.whatsappInstance.findFirst({
+      where: { instanceName },
+      select: { systemPrompt: true, autoReply: true },
+    })
+    if (inst && !inst.systemPrompt) {
+      updateData.autoReply = true
+      updateData.systemPrompt = getDefaultPrompt()
+      console.log(`[Webhook] First connection — auto-enabled autoReply with default prompt`)
+    }
+  }
+
   await prisma.whatsappInstance.updateMany({
     where: { instanceName },
-    data: {
-      status,
-      ...(status === 'CONNECTED' ? { connectedAt: new Date() } : {}),
-      ...(status === 'DISCONNECTED' ? { disconnectedAt: new Date() } : {}),
-    },
+    data: updateData,
   })
 
   console.log(`[Webhook] Connection update: ${instanceName} → ${status}`)
