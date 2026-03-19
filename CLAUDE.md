@@ -85,6 +85,13 @@ Multi-tenant SaaS growth engine: Plugin (Claude Code) + Hub (Hono/Railway) + Das
 
 ---
 
+### 11. Dos tenants con el mismo usuario — tenant mismatch
+**Problema**: El usuario `agencia@theredbot.com` tenía dos tenants: `redbot` (ad6eaea7) creado por Supabase signup, y `redbot-app` (ece67bfc) creado por el seed/API key. La API key resolvía a `redbot-app` pero el Dashboard (Supabase auth) resolvía a `redbot`. Las instancias se creaban en un tenant y se buscaban en otro.
+**Solución**: Mover datos al tenant que usa el Dashboard (`redbot` / `ad6eaea7`).
+**Lección**: SIEMPRE verificar qué tenantId resuelve `getAuthContext()` antes de crear datos. No asumir que el API key y el Dashboard usan el mismo tenant.
+
+---
+
 ## Database Notes
 - Usar `prisma db push` (NUNCA `prisma migrate`) — la DB de producción tiene RLS policies manejadas por Supabase externamente
 - Agregar `--accept-data-loss` flag cuando hay cambios destructivos
