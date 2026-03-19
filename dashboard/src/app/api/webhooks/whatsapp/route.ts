@@ -169,8 +169,8 @@ async function handleMessage(instanceName: string, data: any) {
   // Auto-reply for inbound messages
   console.log(`[Webhook] AutoReply check: direction=${direction} autoReply=${instance.autoReply} hasContent=${!!messageContent} hasPrompt=${!!instance.systemPrompt}`)
   if (direction === 'INBOUND' && instance.autoReply && messageContent) {
-    console.log(`[Webhook] Triggering auto-reply for ${phone}...`)
-    await processAutoReply(instance, conversation.id, phone, messageContent)
+    console.log(`[Webhook] Triggering auto-reply for ${phone} (jid: ${remoteJid})...`)
+    await processAutoReply(instance, conversation.id, remoteJid, messageContent)
   } else if (direction === 'INBOUND' && !instance.autoReply) {
     console.log(`[Webhook] Auto-reply DISABLED for this instance`)
   }
@@ -190,10 +190,12 @@ async function processAutoReply(
     cooldownSecs: number | null
   },
   conversationId: string,
-  phone: string,
+  remoteJid: string,
   inboundMessage: string
 ) {
-  console.log(`[AutoReply] Processing for ${phone}...`)
+  // remoteJid can be "573001234567@s.whatsapp.net" or "280336944619630@lid"
+  const phone = remoteJid.replace(/@s\.whatsapp\.net$/, '').replace(/@lid$/, '')
+  console.log(`[AutoReply] Processing for ${phone} (jid: ${remoteJid})...`)
 
   // Check blacklist
   const blacklisted = await prisma.whatsappBlacklist.findFirst({
@@ -241,7 +243,8 @@ async function processAutoReply(
 
   // Send via Evolution
   try {
-    await sendText(inst.instanceName, phone, replyText)
+    // Use remoteJid directly — handles both @s.whatsapp.net and @lid formats
+    await sendText(inst.instanceName, remoteJid, replyText)
 
     // Store auto-reply message
     await prisma.whatsappMessage.create({
