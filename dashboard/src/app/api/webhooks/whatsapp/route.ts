@@ -105,8 +105,8 @@ async function handleMessage(instanceName: string, data: any) {
     return
   }
 
-  // Extract phone number
-  const phone = remoteJid.replace('@s.whatsapp.net', '')
+  // Extract phone number — handle @s.whatsapp.net AND @lid formats
+  const phone = remoteJid.replace(/@s\.whatsapp\.net$/, '').replace(/@lid$/, '')
   const direction = fromMe ? 'OUTBOUND' : 'INBOUND'
 
   // Idempotency check
@@ -167,8 +167,12 @@ async function handleMessage(instanceName: string, data: any) {
   console.log(`[Webhook] Message stored: ${direction} from ${phone} | ${messageContent?.slice(0, 50)}`)
 
   // Auto-reply for inbound messages
+  console.log(`[Webhook] AutoReply check: direction=${direction} autoReply=${instance.autoReply} hasContent=${!!messageContent} hasPrompt=${!!instance.systemPrompt}`)
   if (direction === 'INBOUND' && instance.autoReply && messageContent) {
+    console.log(`[Webhook] Triggering auto-reply for ${phone}...`)
     await processAutoReply(instance, conversation.id, phone, messageContent)
+  } else if (direction === 'INBOUND' && !instance.autoReply) {
+    console.log(`[Webhook] Auto-reply DISABLED for this instance`)
   }
 }
 
