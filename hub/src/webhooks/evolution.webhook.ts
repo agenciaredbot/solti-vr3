@@ -37,13 +37,66 @@ interface EvolutionEvent {
   apikey?: string
 }
 
+// Normalize event names: Evolution v2 can send MESSAGES_UPSERT or messages.upsert
+function normalizeEvent(raw: string): string {
+  // Convert SCREAMING_SNAKE_CASE to dot.lowercase: MESSAGES_UPSERT → messages.upsert
+  if (raw.includes('_') && raw === raw.toUpperCase()) {
+    // Split on first underscore for two-part events, handle special cases
+    const map: Record<string, string> = {
+      'MESSAGES_UPSERT': 'messages.upsert',
+      'MESSAGES_UPDATE': 'messages.update',
+      'MESSAGES_DELETE': 'messages.delete',
+      'MESSAGES_SET': 'messages.set',
+      'MESSAGES_EDITED': 'messages.edited',
+      'CONNECTION_UPDATE': 'connection.update',
+      'QRCODE_UPDATED': 'qrcode.updated',
+      'SEND_MESSAGE': 'send.message',
+      'SEND_MESSAGE_UPDATE': 'send.message.update',
+      'CONTACTS_UPSERT': 'contacts.upsert',
+      'CONTACTS_UPDATE': 'contacts.update',
+      'CONTACTS_SET': 'contacts.set',
+      'CHATS_UPSERT': 'chats.upsert',
+      'CHATS_UPDATE': 'chats.update',
+      'CHATS_DELETE': 'chats.delete',
+      'CHATS_SET': 'chats.set',
+      'PRESENCE_UPDATE': 'presence.update',
+      'GROUPS_UPSERT': 'groups.upsert',
+      'GROUP_UPDATE': 'group.update',
+      'GROUP_PARTICIPANTS_UPDATE': 'group-participants.update',
+      'LABELS_EDIT': 'labels.edit',
+      'LABELS_ASSOCIATION': 'labels.association',
+      'CALL': 'call',
+      'STATUS_INSTANCE': 'status.instance',
+      'REMOVE_INSTANCE': 'remove.instance',
+      'LOGOUT_INSTANCE': 'logout.instance',
+      'INSTANCE_CREATE': 'instance.create',
+      'INSTANCE_DELETE': 'instance.delete',
+      'APPLICATION_STARTUP': 'application.startup',
+    }
+    return map[raw] || raw.toLowerCase().replace(/_/g, '.')
+  }
+  return raw
+}
+
 // ═══ POST / — Handle Evolution API webhook ═══
 evolutionWebhook.post('/', async (c) => {
-  const body = await c.req.json() as EvolutionEvent
-  const { event, instance: instanceName, data } = body
+  let body: EvolutionEvent
+  try {
+    body = await c.req.json() as EvolutionEvent
+  } catch {
+    logger.warn('Webhook received invalid JSON body')
+    return c.json({ error: 'Invalid JSON' }, 400)
+  }
 
-  // Log ALL incoming webhook events for debugging
-  logger.info({ event, instanceName: instanceName || body.instance, dataKeys: data ? Object.keys(data) : 'no-data' }, 'Evolution webhook received')
+  const rawEvent = body.event
+  const instanceName = body.instance
+  const data = body.data
+
+  // Normalize event name (MESSAGES_UPSERT → messages.upsert)
+  const event = rawEvent ? normalizeEvent(rawEvent) : ''
+
+  // Log ALL incoming webhook events
+  logger.info({ rawEvent, event, instanceName, dataKeys: data ? Object.keys(data) : 'no-data' }, 'Evolution webhook received')
 
   if (!event || !instanceName) {
     logger.warn({ bodyKeys: Object.keys(body) }, 'Invalid webhook payload — missing event or instance')
@@ -85,8 +138,6 @@ evolutionWebhook.post('/', async (c) => {
   try {
     switch (event) {
       case 'messages.upsert':
-        await handleMessageUpsert(instance, data)
-        break
       case 'send.message':
         await handleMessageUpsert(instance, data)
         break
