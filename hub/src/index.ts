@@ -77,7 +77,8 @@ api.route('/tags', tagRoutes)
 app.route('/api/v1', api)
 
 // ═══ Webhooks (no auth — verified by signature/instanceName) ═══
-app.route('/webhooks/evolution', evolutionWebhook)
+// Evolution webhook DISABLED on Hub — handled by Vercel API routes now
+// app.route('/webhooks/evolution', evolutionWebhook)
 app.route('/webhooks/brevo', brevoWebhook)
 app.route('/webhooks/telegram', telegramWebhook)
 app.route('/webhooks/stripe', stripeWebhook)
@@ -114,10 +115,11 @@ serve({
   // Start campaign scheduler (checks every 5 minutes)
   startScheduler(5 * 60 * 1000)
 
-  // Start message poller (fallback for Evolution webhook bug)
-  import('./jobs/message-poller.js').then(({ startMessagePoller }) => {
-    startMessagePoller()
-  }).catch(err => logger.warn({ err }, 'Failed to start message poller'))
+  // Message poller DISABLED — WhatsApp now handled by Vercel API routes directly
+  // The poller was causing duplicate/conflicting auto-replies
+  // import('./jobs/message-poller.js').then(({ startMessagePoller }) => {
+  //   startMessagePoller()
+  // }).catch(err => logger.warn({ err }, 'Failed to start message poller'))
 })
 
 export default app
