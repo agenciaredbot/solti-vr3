@@ -13,12 +13,22 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default
 
 async function getInstances() {
   try {
-    // Auto-sync with Evolution on page load to keep statuses fresh
+    // Try direct DB query via server action (no Hub dependency)
     const syncResult = await syncInstances()
-    if (syncResult?.data) return syncResult
-    // Fallback to regular fetch if sync fails
-    return await hubFetch('/whatsapp/instances')
-  } catch {
+    if (syncResult?.error) {
+      console.error('[WhatsApp Page] Sync error:', syncResult.error)
+    }
+    // Always fetch from DB via Prisma directly
+    const { prisma } = await import('@/lib/prisma')
+    const { getAuthContext } = await import('@/lib/auth-api')
+    const { tenantId } = await getAuthContext()
+    const instances = await prisma.whatsappInstance.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+    })
+    return { data: instances }
+  } catch (e: any) {
+    console.error('[WhatsApp Page] Error:', e.message)
     return { data: [] }
   }
 }
