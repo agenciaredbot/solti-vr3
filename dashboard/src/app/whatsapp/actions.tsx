@@ -130,9 +130,9 @@ function InstanceCardActions({
     setQrLoading(true)
     const res = await getInstanceQR(instanceId)
     if (!res.error) {
-      const data = res.data || res
-      setQrData(data.qrCode || null)
-      if (data.status) setStatusData(data.status)
+      const data = (res as any).data || res
+      setQrData((data as any).qrCode || null)
+      if ((data as any).status) setStatusData((data as any).status)
     } else {
       setQrData(null)
     }
@@ -142,8 +142,8 @@ function InstanceCardActions({
   async function checkStatus() {
     const res = await getInstanceStatus(instanceId)
     if (!res.error) {
-      const data = res.data || res
-      setStatusData(data.status || status)
+      const data = (res as any).data || res
+      setStatusData((data as any).status || status)
       router.refresh()
     }
   }
