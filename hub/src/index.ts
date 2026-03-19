@@ -113,6 +113,11 @@ serve({
 
   // Start campaign scheduler (checks every 5 minutes)
   startScheduler(5 * 60 * 1000)
+
+  // Start message poller (fallback for Evolution webhook bug)
+  import('./jobs/message-poller.js').then(({ startMessagePoller }) => {
+    startMessagePoller()
+  }).catch(err => logger.warn({ err }, 'Failed to start message poller'))
 })
 
 export default app

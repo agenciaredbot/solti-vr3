@@ -228,7 +228,9 @@ export class EvolutionAdapter implements ServiceAdapter {
 
     // POST with JSON body (NOT GET)
     const body: Record<string, unknown> = { limit: (params.limit as number) || 20 }
-    if (params.remoteJid) {
+    if (params.where) {
+      body.where = params.where
+    } else if (params.remoteJid) {
       body.where = { key: { remoteJid: params.remoteJid as string } }
     }
 
