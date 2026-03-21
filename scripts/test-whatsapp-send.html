@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solti VR3 — Test WhatsApp Send</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 2rem; }
+    .container { max-width: 600px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; color: #25D366; }
+    .card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; color: #999; margin-bottom: 0.3rem; }
+    input, textarea { width: 100%; padding: 0.6rem; background: #111; border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 0.95rem; margin-bottom: 1rem; }
+    textarea { height: 80px; resize: vertical; }
+    button { width: 100%; padding: 0.8rem; background: #25D366; color: #000; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    button:hover { background: #20bd5a; }
+    button:disabled { background: #444; color: #888; cursor: not-allowed; }
+    .log { background: #111; border: 1px solid #333; border-radius: 8px; padding: 1rem; margin-top: 1rem; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+    .success { color: #25D366; }
+    .error { color: #ff5555; }
+    .info { color: #8be9fd; }
+    .step { margin-bottom: 0.5rem; padding: 0.5rem; background: #1a1a1a; border-radius: 6px; }
+    .step.done { border-left: 3px solid #25D366; }
+    .step.fail { border-left: 3px solid #ff5555; }
+    .step.running { border-left: 3px solid #f1fa8c; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Solti VR3 — Test WhatsApp Campaign</h1>
+
+    <div class="card">
+      <label>Evolution API URL</label>
+      <input id="evoUrl" value="https://evolution-api-evolution-api.evfgat.easypanel.host" />
+
+      <label>Evolution API Key</label>
+      <input id="evoKey" value="429683C4C977415CAAFCCE10F7D57E11" />
+
+      <label>Instance Name (instancia WhatsApp conectada)</label>
+      <input id="instance" value="solti-ece67bfc" placeholder="ej: solti-ece67bfc" />
+
+      <label>Número destino</label>
+      <input id="phone" value="573042651486" />
+
+      <label>Mensaje</label>
+      <textarea id="message">Hola! Este es un mensaje de prueba de Solti VR3. Puedes ignorar este mensaje. 🧪</textarea>
+
+      <button id="btnSend" onclick="runTest()">Enviar mensaje de prueba</button>
+    </div>
+
+    <div id="steps"></div>
+    <div id="log" class="log" style="display:none;"></div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    function log(msg, cls = '') {
+      const el = $('log');
+      el.style.display = 'block';
+      el.innerHTML += `<span class="${cls}">${new Date().toLocaleTimeString()} — ${msg}</span>\n`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function addStep(id, text, status = 'running') {
+      const container = $('steps');
+      let step = document.getElementById('step-' + id);
+      if (!step) {
+        step = document.createElement('div');
+        step.id = 'step-' + id;
+        step.className = 'step';
+        container.appendChild(step);
+      }
+      const icon = status === 'done' ? '✓' : status === 'fail' ? '✗' : '⟳';
+      step.className = `step ${status}`;
+      step.textContent = `${icon} ${text}`;
+    }
+
+    async function evoFetch(path, method = 'GET', body = null) {
+      const url = $('evoUrl').value.replace(/\/$/, '') + path;
+      const opts = {
+        method,
+        headers: {
+          'apikey': $('evoKey').value,
+          'Content-Type': 'application/json',
+        },
+      };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(url, opts);
+      const data = await res.json();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${JSON.stringify(data)}`);
+      return data;
+    }
+
+    async function runTest() {
+      const btn = $('btnSend');
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+      $('steps').innerHTML = '';
+      $('log').innerHTML = '';
+
+      try {
+        // Step 1: Check instances
+        addStep(1, 'Verificando instancias conectadas...');
+        const instances = await evoFetch('/instance/fetchInstances');
+        log(`Instancias encontradas: ${instances.length || (Array.isArray(instances) ? instances.length : 'N/A')}`, 'info');
+
+        const list = Array.isArray(instances) ? instances : (instances.data || [instances]);
+        const instanceName = $('instance').value;
+        const found = list.find(i =>
+          (i.instance?.instanceName || i.instanceName || i.name) === instanceName
+        );
+
+        if (found) {
+          const state = found.instance?.state || found.state || found.connectionStatus || 'unknown';
+          log(`Instancia "${instanceName}": estado = ${state}`, state === 'open' ? 'success' : 'error');
+          addStep(1, `Instancia "${instanceName}" — estado: ${state}`, state === 'open' ? 'done' : 'fail');
+
+          if (state !== 'open') {
+            log('⚠ La instancia no está conectada. El mensaje podría fallar.', 'error');
+          }
+        } else {
+          log(`Instancias disponibles: ${JSON.stringify(list.map(i => i.instance?.instanceName || i.instanceName || i.name))}`, 'info');
+          addStep(1, `Instancia "${instanceName}" no encontrada`, 'fail');
+          log('Continuando de todas formas...', 'info');
+        }
+
+        // Step 2: Send message
+        addStep(2, 'Enviando mensaje...');
+        const phone = $('phone').value;
+        const text = $('message').value;
+
+        log(`Enviando a ${phone} via instancia "${instanceName}"...`, 'info');
+
+        const result = await evoFetch(`/message/sendText/${instanceName}`, 'POST', {
+          number: phone,
+          text: text,
+        });
+
+        log(`Respuesta: ${JSON.stringify(result, null, 2)}`, 'success');
+        addStep(2, 'Mensaje enviado exitosamente!', 'done');
+
+        // Step 3: Summary
+        addStep(3, `✓ Mensaje enviado a +${phone}. Revisa WhatsApp!`, 'done');
+
+      } catch (err) {
+        log(`Error: ${err.message}`, 'error');
+        addStep('err', `Error: ${err.message}`, 'fail');
+
+        // Try to provide helpful error messages
+        if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+          log('\nPosible problema de CORS. Intenta:', 'info');
+          log('1. Abre DevTools (F12) → Console para ver el error exacto', 'info');
+          log('2. Si es CORS, la Evolution API necesita permitir tu origen', 'info');
+          log('3. Alternativa: copia este curl y ejecútalo en terminal:', 'info');
+          log(`\ncurl -X POST \\
+  -H "apikey: ${$('evoKey').value}" \\
+  -H "Content-Type: application/json" \\
+  "${$('evoUrl').value}/message/sendText/${$('instance').value}" \\
+  -d '{"number": "${$('phone').value}", "text": "${$('message').value}"}'`, 'info');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar mensaje de prueba';
+      }
+    }
+  </script>
+</body>
+</html>
